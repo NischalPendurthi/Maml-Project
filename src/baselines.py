@@ -148,18 +148,22 @@ class GSTOR(BanditAlgo):
     name = "GSTOR"
 
     def __init__(self, d, K, T, env_info, rng, delta=0.01, explore_const=1.0,
-                 max_explore_frac=0.9, bandwidth=None, use_truncation=True):
+                 max_explore_frac=0.9, bandwidth=None, use_truncation=True,
+                 grid_size=4096):
         super().__init__(d, K, T, env_info, rng)
         self.delta = delta
         n_e = int(np.ceil(explore_const * np.sqrt(d) * T ** 0.75))
         self.n_explore = int(min(n_e, np.ceil(max_explore_frac * T)))
         self.use_truncation = use_truncation
         self.bandwidth = bandwidth
+        self.grid_size = int(grid_size)
         self._S, self._y = [], []
         self.theta = None
         self._z_tr = None
         self._y_tr = None
         self._h = None
+        self._grid = None
+        self._grid_vals = None
 
     def _fit(self):
         n = len(self._y)
@@ -176,15 +180,40 @@ class GSTOR(BanditAlgo):
             s = float(np.std(self._z_tr))
             self._h = max(1.06 * s * n ** (-0.2), 1e-6)
         self._S, self._y = [], []
+        self._build_grid()
 
-    def _f_hat(self, z):
-        # Nadaraya-Watson with a Gaussian kernel.
+    def _nw_exact(self, z):
+        """Nadaraya-Watson with a Gaussian kernel, evaluated directly."""
         u = (z[:, None] - self._z_tr[None, :]) / self._h
         w = np.exp(-0.5 * u ** 2)
         den = w.sum(axis=1)
         num = w @ self._y_tr
-        out = np.divide(num, den, out=np.zeros_like(num), where=den > 1e-12)
-        return out
+        return np.divide(num, den, out=np.zeros_like(num), where=den > 1e-12)
+
+    def _build_grid(self):
+        """Tabulate the (now frozen) link estimate once.
+
+        GSTOR is explore-then-commit: after the exploration prefix the kernel
+        regression never changes again.  Evaluating it exactly on every one of
+        the remaining rounds costs O(K n) per round with n ~ T^{3/4}, which
+        dominates the entire experiment budget for no statistical benefit.  We
+        instead tabulate f_hat once on a dense grid and linearly interpolate,
+        which is the same estimator up to a grid resolution far finer than the
+        kernel bandwidth.
+        """
+        lo = float(self._z_tr.min()) - 4.0 * self._h
+        hi = float(self._z_tr.max()) + 4.0 * self._h
+        self._grid = np.linspace(lo, hi, self.grid_size)
+        vals = np.empty(self.grid_size)
+        step = 512                                   # bound peak memory
+        for i in range(0, self.grid_size, step):
+            vals[i:i + step] = self._nw_exact(self._grid[i:i + step])
+        self._grid_vals = vals
+
+    def _f_hat(self, z):
+        # np.interp clamps outside the grid, which matches the plateau that
+        # Nadaraya-Watson produces beyond the support of the training indices.
+        return np.interp(z, self._grid, self._grid_vals)
 
     def select(self, X):
         if self.theta is None:
@@ -227,7 +256,12 @@ class IGPUCB(BanditAlgo):
         # median-heuristic-style default for standard Gaussian contexts
         self.ell = (lengthscale if lengthscale is not None
                     else np.sqrt(2.0 * d) * env_info["ctx_std"])
-        self._X, self._y = [], []
+        # Preallocate rather than append to a Python list: the conditioning set
+        # is rebuilt every refit, and re-running np.asarray over a 20k-element
+        # list of tiny arrays each time costs more than the linear algebra.
+        self._X = np.empty((T, d))
+        self._y = np.empty(T)
+        self._n = 0
         self._Xtr = None
         self._Kinv = None
         self._alpha = None
@@ -239,9 +273,8 @@ class IGPUCB(BanditAlgo):
         return np.exp(-np.maximum(d2, 0.0) / (2.0 * self.ell ** 2))
 
     def _refit(self):
-        n = len(self._y)
-        X = np.asarray(self._X)
-        y = np.asarray(self._y)
+        n = self._n
+        X, y = self._X[:n], self._y[:n]
         if n > self.max_points:
             idx = self.rng.choice(n, self.max_points, replace=False)
             X, y = X[idx], y[idx]
@@ -272,8 +305,10 @@ class IGPUCB(BanditAlgo):
 
     def update(self, X, a, y):
         self.t += 1
-        self._X.append(X[a])
-        self._y.append(y)
-        n = len(self._y)
+        if self._n < self._X.shape[0]:
+            self._X[self._n] = X[a]
+            self._y[self._n] = y
+            self._n += 1
+        n = self._n
         if n >= max(10, self.d) and (self._alpha is None or n % self.refit_every == 0):
             self._refit()

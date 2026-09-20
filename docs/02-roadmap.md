@@ -1,249 +1,206 @@
 # CS6007 Project Roadmap — Fed-ZoomSIB
 
-**Today:** 20 Sept 2026 · **Pitch:** 28 Sept 2026 · **Final presentation:** early Nov 2026 (last year's was 2 Nov)
+**Pitch:** 28 Sept 2026 · **Final presentation:** early Nov 2026
 
-Read [01-literature-and-problem.md](01-literature-and-problem.md) first. This document is
-the execution plan: what to build, in what order, and where the novelty lives.
-
----
-
-## Guiding principle
-
-**Reproduce before you innovate.** Every hour spent building a single-agent ZoomSIB-UCB
-that exactly reproduces Figure 1 of Dey–Bhore–Ghosh is an hour that makes the federated
-result credible. A federated curve is meaningless without a trustworthy single-agent curve
-underneath it, because the whole claim is *"collaboration buys you X"* — and X is measured
-against that baseline.
-
-Second principle: **the theory and the code must be attackable separately.** If the
-federated Phase-1 proof stalls, the empirical communication study still carries the
-project. If experiments run late, the Phase-1 lemma still carries it. Never let both
-depend on the same milestone.
+Read [01-literature-and-problem.md](01-literature-and-problem.md) first for the papers and
+the formal problem. This document answers two questions: **what is the baseline**, and
+**what exactly are we improving on top of it**.
 
 ---
 
-## Phase 0 — Pitch (20 → 28 Sept)
+## Status
 
-| # | Task | Owner | Done when |
-|---|---|---|---|
-| 0.1 | Read §2.2 of the lit review + skim arXiv:2605.09454 §3–4 | both | you can explain Phase 1/Phase 2 at a whiteboard |
-| 0.2 | Compile `slides/pitch/main.tex`, fill in names/roll numbers | — | PDF builds, ≤ 5 min at speaking pace |
-| 0.3 | Rehearse once with a timer | both | under 5:00 |
-| 0.4 | Sanity-check the `√N` / factor-`N` arithmetic in §4.2 | — | you can rederive `T₀ = Õ(d²T^{2/3}/N)` live |
-
-**Nothing needs to be coded before the pitch.** The pitch is a plan, not a result.
-Do 0.4 seriously though — "why does Phase 1 give `N` and Phase 2 only `√N`?" is the
-obvious question from a bandits instructor, and the answer (a sample mean pools exactly;
-exploration only concentrates as `√·`) is the best thing you can say in the whole talk.
-
----
-
-## Phase 1 — Single-agent ground truth (29 Sept → 10 Oct)
-
-**This is "what should be coded from existing knowledge."** All of it already exists in
-the papers; none of it is novel. Do not improvise here — match the papers' settings so the
-numbers are checkable.
-
-### 1.1 Environment (`src/envs.py`)
-
-```
-SIBEnv(d, K, link, context_dist, sigma, seed)
-  .reset() -> arm set X_t ∈ R^{K×d}, drawn i.i.d. from p
-  .step(a) -> y = f(<x_a, θ*>) + η
-  .oracle(X_t) -> max_a f(<x_a, θ*>)        # for regret
-  .score(x) -> S(x) = -∇ log p(x)           # = x for standard Gaussian
-```
-
-Use **standard Gaussian contexts** first: then `S(x) = x`, which removes an entire class of
-bugs. Links, copied exactly from Dey et al. §6 so results are comparable:
-
-- quadratic `f(z) = −(z−1)² + 1`
-- asymmetric `f(z) = z e^{−z²}`
-- zigzag `f(z) = sin(z) + 0.3 z`
-- monotone control `f(z) = 1/(1+e^{−z})` (where ESTOR *should* win — a good honesty check)
-
-Defaults: `d = 10`, `K = 20`, `σ` small, 30 seeds.
-
-### 1.2 Stein estimator (`src/stein.py`)
-
-```
-truncated_stein(X, y, tau) -> θ̂          # (1/n) Σ φ_τ(yᵢ S(xᵢ))
-normalize_l1(θ̂)          -> θ̂₀
-```
-
-**Test it in isolation before anything else.** Plot `‖θ̂₀ − θ*‖₁` against `n` on log-log
-axes; you must see slope `≈ −1/2`. If you do not, nothing downstream will work. This single
-plot is also a slide in the final deck.
-
-### 1.3 Single-agent ZoomSIB-UCB (`src/zoomsib.py`)
-
-Algorithm 1 of the paper, verbatim. Two things people get wrong:
-
-- **Freeze `θ̂₀` after Phase 1.** Do not keep updating it during Phase 2 — sample splitting
-  is what makes the bin noise a martingale difference sequence.
-- **Handle the empty available-bin set.** If `B_t = ∅`, pull uniformly at random (line 13).
-  Also handle `|ẑ| > W` → `b = ⊥`.
-
-Implement the **adaptive stopping rule** too (monitor stability of `θ̂₀` across a sliding
-window, exit Phase 1 on convergence). The theoretical `T₀ = d²T^{2/3}·polylog` is far too
-large to run; Dey et al. use adaptive stopping in all their experiments and so must we.
-
-### 1.4 Baselines (`src/baselines.py`)
-
-| Baseline | Source | Why it's in the plot |
+| Phase | Content | State |
 |---|---|---|
-| Random | — | sanity floor |
-| LinUCB / OFUL | Abbasi-Yadkori '11 | shows linear models fail on non-monotone `f` |
-| ESTOR | Kang et al. '26 | strong when `f` monotone, should collapse when not |
-| GSTOR | Kang et al. '26 | the `T^{3/4}` non-monotone competitor |
-| IGP-UCB | Chowdhury & Gopalan '17 | ignores index structure; should degrade with `d` |
-
-### 1.5 Deliverable of Phase 1
-
-A figure reproducing Dey et al. Fig. 1: cumulative regret vs `T` on log-log axes, slope
-`≈ 0.53–0.67`, ZoomSIB-UCB below GSTOR. **If you have this by 10 Oct, the project is safe.**
+| 0 | Project pitch | deck built, needs names/roll numbers |
+| **1** | **Single-agent baseline + reproduction** | **complete — see Part A** |
+| 2 | Federated Phase 1 (one-shot Stein averaging) | not started |
+| 3 | Cooperative Phase 2 (sleeping UCB over a graph) | not started |
+| 4 | Communication efficiency | not started |
+| 5 | One extension: safety *or* clustered indices | not started |
+| 6 | Final deck + report | not started |
 
 ---
 
-## Phase 2 — The novel core: Fed-ZoomSIB (11 → 22 Oct)
+# Part A — The baseline
 
-**This is where the effort goes.** Everything above is reproduction; everything here is new.
+## A.1 What "the baseline" means here
 
-### 2.1 Federated Phase 1 — one-shot Stein averaging (`src/fed_stein.py`)
+The baseline is the **complete single-agent problem**: one learner, no communication, no
+safety constraint, one shared unknown index `θ*` and one shared unknown link `f`. Every
+algorithm in it already exists in the literature. Nothing in Part A is a contribution —
+its entire job is to be a *trustworthy measuring stick*, because every claim we will make
+later has the form "collaboration buys you X", and X is measured against these curves.
 
-The contribution in three lines of code and one lemma:
+## A.2 What is implemented
 
+| Module | Contents | Source |
+|---|---|---|
+| [src/envs.py](../src/envs.py) | `SIBEnv`, four link functions, score function `S(x)` | Dey et al. §2, §6 |
+| [src/stein.py](../src/stein.py) | truncated + ℓ1-normalised Stein estimator | Dey et al. §2.2, Eq. 1 |
+| [src/zoomsib.py](../src/zoomsib.py) | `ZoomSIBUCB` (Algorithm 1) + oracle-θ ablation | Dey et al. §3 |
+| [src/baselines.py](../src/baselines.py) | `RandomPolicy`, `LinUCB`, `ESTOR`, `GSTOR`, `IGPUCB` | see below |
+| [src/runner.py](../src/runner.py) | parallel trial harness, CI helper, log-log slope fit | — |
+
+Baseline provenance: **LinUCB** = Abbasi-Yadkori et al. 2011; **ESTOR/GSTOR** = Kang et al.
+ICLR 2026 (our reimplementation — no reference code is public, so exploration schedules use
+the rates their analysis prescribes, `O(√T)` and `O(T^{3/4})`, with constants exposed as
+arguments); **IGP-UCB** = Chowdhury & Gopalan ICML 2017.
+
+## A.3 What the baseline establishes
+
+See [03-phase1-results.md](03-phase1-results.md) for the figures, tables and the two
+setup decisions that materially affect what the benchmark measures.
+
+The four results that matter downstream:
+
+1. **The Stein estimator converges at exactly `n^{-1/2}`** (fitted exponents −0.496 to
+   −0.501 across `d ∈ {5,10,20,40}`). This is the single most important number in Part A:
+   the federated claim is that `N` agents reach the same accuracy from `n/N` samples each,
+   and that claim is only measurable against a verified single-agent rate.
+2. **Exploiting the single-index structure is worth a lot.** ZoomSIB-UCB beats GSTOR,
+   LinUCB and IGP-UCB on every non-monotone link.
+3. **Phase 1 dominates the regret at simulable horizons.** Handing ZoomSIB-UCB the true
+   `θ*` cuts regret by 2.3×–5.3×. So *direction estimation, not binned exploration, is the
+   thing worth attacking* — which is exactly what federation attacks.
+4. **The `d`-dependence lives entirely in Phase 1**, and it is large. At `d = 80` the
+   adaptive rule spends **36% of the entire horizon** estimating `θ*` (`T₀ = 3612` of
+   10 000 rounds), against 1.1% at `d = 5`. That single number is the strongest motivation
+   available for one-shot Stein averaging: it is the cost a factor-`N` speedup would remove,
+   for one message of `d` numbers.
+
+## A.4 What the baseline deliberately does *not* do
+
+This list is the specification for Part B.
+
+| Baseline behaviour | Why it is a limitation |
+|---|---|
+| One learner; no notion of a second agent | the course is Multi-Agent ML; no collaboration is measured |
+| `θ̂₀` estimated from one agent's `T₀` samples | the estimator is a sample mean — pooling it is free and unused |
+| Per-bin statistics `(n_j, S_j)` kept privately | two scalars per bin; trivially shareable, currently not shared |
+| No communication model at all | no graph, no interval `C`, no byte budget, no spectral gap |
+| No safety constraint | every arm is playable |
+| One global `θ*` shared by assumption | no heterogeneity, so no negative-transfer question |
+
+---
+
+# Part B — The improvements
+
+Each improvement below is stated as an explicit delta: what the baseline does now, what we
+change, what we must code, and how we will know whether it worked.
+
+## B.1 Improvement 1 — Federate Phase 1 by one-shot Stein averaging ★ protect this one
+
+> **Baseline:** agent estimates `θ̂₀` from its own `T₀` samples; error `≍ C·d/√T₀`.
+> **Improvement:** `N` agents each collect `T₀/N` samples, average their local Stein
+> estimators **once**, and all adopt the result.
+
+**Why it should work, exactly.** The Stein estimator is `(1/n)Σ φ_τ(yᵢS(xᵢ))` — an
+average. Averaging `N` local averages of equal size is *algebraically identical* to the
+centralized estimator on the pooled data. Not an approximation, not a consensus iteration:
+one broadcast of `d` numbers per agent. Almost no other bandit primitive has this property.
+
+**To code** — `src/fed_stein.py`:
 ```
-each agent i:  θ̂_i = truncated_stein(X_i, y_i, tau)      # local, from T₀ rounds
-one broadcast: θ̄   = (1/N) Σ_i θ̂_i                        # or gossip with P
-all agents:    θ̂₀  = normalize_l1(θ̄)
+theta_i  = truncated_stein(S_i, y_i, tau)      # local, from T0/N rounds
+theta_bar= (1/N) * sum_i theta_i               # one broadcast (or gossip with P)
+theta_0  = normalize_l1(theta_bar)             # normalise AFTER averaging
 ```
+Note the ordering: average the **unnormalised** estimators, then normalise. Normalising
+first would average `N` unit-ℓ1 vectors and throw away the relative signal strengths.
 
-**Experiment E-A (the headline plot).** Fix target accuracy `‖θ̂₀ − θ*‖₁ ≤ ε`. Measure the
-per-agent rounds `T₀` needed to reach it, for `N ∈ {1, 2, 4, 8, 16, 32}`. **Expect
-`T₀ ∝ 1/N`.** Plot `T₀·N` vs `N` — it should be flat. That flat line *is* the factor-`N`
-result, and it is the most persuasive single figure in the project.
+**How we measure it.**
+- *E-A (headline).* Fix a target accuracy `ε`; measure per-agent rounds `T₀(N)` needed to
+  reach it for `N ∈ {1,2,4,8,16,32}`. Expect `T₀ ∝ 1/N`; **plot `N·T₀(N)` vs `N` and look
+  for a flat line.** Baseline reference: the `n^{-1/2}` curve from Part A.
+- *E-B.* Sweep `d ∈ {5,10,20,40}` at fixed `N`. The gain should *grow* with `d`, because
+  Part A showed the `d`-dependence is concentrated in Phase 1.
 
-**Experiment E-B (the asymmetry).** Sweep `d ∈ {5, 10, 20, 40}` at fixed `N`. The
-collaborative gain should *grow* with `d`, because the `d`-dependent estimation cost is the
-part that amortizes fully. This tests the prediction in §4.2 of the lit review and is the
-kind of "theory made falsifiable" result that reads well.
+**Theory task T-A.** Prove `‖θ̄ − μ*θ*‖₁ ≤ C_θ d √(log(2d/δ)/(Nn))` w.h.p., then push it
+through the normalisation step of Dey et al. Lemma 2.1. Independent sub-Gaussian averages
+plus a union bound — tractable, and it is the theorem slide of the final deck.
 
-**Theory task T-A.** Prove the federated Phase-1 concentration lemma: with `N` agents and
-`n` local samples each, `‖θ̄ − μ*θ*‖₁ ≤ C_θ d √(log(2d/δ)/(Nn))` w.h.p., then push through
-Lemma 2.1's normalization step. This is a genuine but *tractable* proof — independent
-sub-Gaussian averages plus a union bound — and it is the theorem slide of the final deck.
+## B.2 Improvement 2 — Cooperative Phase 2 over a communication graph
 
-### 2.2 Cooperative Phase 2 (`src/coop_bins.py`)
+> **Baseline:** each agent runs its own sleeping-UCB over `O(T^{1/3})` bins.
+> **Improvement:** agents share the per-bin sufficient statistics `(n_j, S_j)` over a
+> graph `G` with communication matrix `P`.
 
-Per-bin statistics `(n_j, S_j)` shared over graph `G`. Implement:
+**Why it is tractable.** Dey et al. **Proposition 4.7** is a modular reduction: *any*
+bandit algorithm for `N` bins with stochastic availability can be substituted into Phase 2,
+and the regret bound follows. A cooperative sleeping bandit is exactly such an algorithm,
+so we cite a distributed-MAB bound rather than proving one from scratch.
 
-- **Centralized pooling** — upper-bound reference, not deployable.
-- **Gossip / consensus** with matrix `P` (Amani–Thrampoulidis Assumption 1), on complete,
-  ring, star, and Erdős–Rényi graphs.
-- **Independent** — no sharing, the lower-bound reference.
+Unlike B.1 this pooling is **statistical, not exact** — which is the point. We expect the
+two phases to benefit by different amounts, and quantifying that asymmetry is the project's
+main scientific question.
 
-**Experiment E-C.** Network regret vs `T` for `N ∈ {1,4,8,16}`; plot per-agent regret and
-check for the `√N` improvement. Plot regret against spectral gap `1 − |λ₂|` across
-topologies — Amani & Thrampoulidis predict an additive penalty, and confirming that in a
-*nonlinear* setting is a real result.
+**To code** — `src/coop_bins.py`: centralized pooling (upper-bound reference), gossip /
+consensus with `P` over complete / ring / star / Erdős–Rényi graphs, and independent
+learners (lower-bound reference).
 
-**Theory task T-B.** Instantiate **Proposition 4.7** with a cooperative sleeping-UCB as the
-subroutine `A`. Because Prop 4.7 is modular, this is mostly a matter of citing the right
-distributed-MAB regret bound and checking that stochastic availability is preserved under
-pooling. Considerably easier than proving it from scratch.
+**Measure.** Network and per-agent regret vs `T` for `N ∈ {1,4,8,16}`; regret against
+spectral gap `1 − |λ₂|` across topologies (Amani & Thrampoulidis predict an additive
+penalty — confirming that in a *nonlinear* setting is a real result).
 
-### 2.3 Deliverable of Phase 2
+## B.3 Improvement 3 — Communication efficiency
 
-The three plots E-A, E-B, E-C plus lemma T-A. **This alone is a complete, strong project.**
+> **Baseline:** no communication exists. **Improvement:** make it as rare as possible.
 
----
+Phase 1 already costs exactly **one** message. The question is Phase 2.
 
-## Phase 3 — Communication efficiency (23 → 29 Oct)
+**To code** — `src/comms.py`: periodic (`C ∈ {1,10,100,1000,∞}`), **event-triggered**
+(broadcast bin `j` only when `n_j` grows by a factor `(1+γ)` — expect `O(N_bins log T)`
+messages instead of `O(T)`), and quantized `(n_j, S_j)`.
 
-The most CS6007-aligned axis. Phase 1 costs exactly **one** message of `d` numbers.
-The question is Phase 2.
+**Headline metric: regret per transmitted byte**, not regret vs `T`. That reframing is
+what makes this a multi-agent-learning result rather than a bandits result.
 
-- **Sweep the interval `C`** — communicate every `C` rounds, `C ∈ {1, 10, 100, 1000, ∞}`.
-- **Event-triggered** — agent broadcasts bin `j` only when `n_j` has grown by a
-  multiplicative factor `(1+γ)` since its last broadcast. Expect `O(N_bins log T)` messages
-  total instead of `O(T)`.
-- **Quantization** — send `(n_j, S_j)` at reduced precision; plot regret vs bits/round.
-- **Headline metric: regret per transmitted byte.** Not regret vs `T`. This reframing is
-  what makes it a multi-agent-learning result rather than a bandits result.
+**Thesis to test:** *most of the collaborative gain in a single-index bandit is purchasable
+with `O(1)` communication, because the expensive part — learning the direction — is a
+single average.*
 
-**Expected finding, and the project's thesis:** *most of the collaborative gain in a
-single-index bandit is purchasable with `O(1)` communication, because the expensive part —
-learning the direction — is a single average.* If that holds, it is a genuinely quotable
-conclusion.
+## B.4 Improvement 4 — pick exactly ONE (decide ~29 Oct)
 
----
+**Option A — Safety** (`src/safe.py`, lower risk). Safety feedback
+`z_{i,t} = h(⟨x, μ*⟩) + ζ`. Second Stein estimator for `μ*`, pessimistic per-bin LCB,
+restrict Phase-2 UCB to safe bins, keep a known-safe fallback arm. Start with linear `h`
+(= Safe-DLUCB, known to work), then unknown `h` (new). Metrics: violation rate, regret vs
+the *safe* optimum.
 
-## Phase 4 — Pick ONE extension (30 Oct → 5 Nov)
+**Option B — Clustered indices** (`src/ifca_sib.py`, higher ceiling). Agents have
+heterogeneous `θ*_i` drawn from `M` unknown clusters. Naive averaging now causes **negative
+transfer**. IFCA alternation: each agent joins the cluster whose centre best explains its
+local Stein statistic; each cluster averages its members. Sweep cluster separation.
 
-Do not attempt both. Decide on ~29 Oct based on how Phase 2 went.
-
-### Option A — Safety (`src/safe.py`) — lower risk
-Add safety feedback `z_{i,t} = h(⟨x, μ*⟩) + ζ`. Second Stein estimator for `μ*`; build
-pessimistic per-bin LCB; restrict Phase-2 UCB to safe bins; keep a known-safe fallback arm.
-Metrics: constraint-violation rate and regret vs the safe optimum. Start with linear `h`
-(= Safe-DLUCB, known to work), then unknown `h` (new).
-
-### Option B — Clustered indices (`src/ifca_sib.py`) — higher ceiling
-Agents have heterogeneous `θ*_i` from `M` unknown clusters. IFCA alternation: each agent
-picks the cluster centre closest to its local Stein estimate; each cluster averages its
-members. Show naive averaging suffers **negative transfer** while clustered averaging
-recovers the gain. Sweep cluster separation. This is Prof. Ghosh's IFCA applied to his own
-ZoomSIB — the highest-value result available to us.
-
-**Recommendation: Option B**, if Phase 2 finishes on schedule. It is more novel, it is
-squarely "multi-agent machine learning", and the negative-transfer plot is compelling. Take
-Option A if Phase 2 slips — the linear tier is guaranteed to work.
+**Recommendation: Option B** if B.2 finishes on time — it is Prof. Ghosh's own IFCA applied
+to his own ZoomSIB, and the negative-transfer plot is the most compelling single figure
+available to us. Fall back to A if B.2 slips.
 
 ---
 
-## Phase 5 — Final deliverables (5 → 12 Nov)
+## Summary: baseline → improvement
 
-- Final deck (same template, ~25–35 slides: problem → assumptions → algorithm → theorem → experiments → ablations → conclusion).
-- Short report / arXiv-style writeup.
-- Clean repo with a `README`, seeds fixed, one script per figure.
-- 20+ seeds with confidence intervals on every plot. Last year's decks show error bars; match that.
-
----
-
-## Where the novelty is, in one paragraph
-
-Everything in **Phase 1 is reproduction** — ZoomSIB-UCB, the Stein estimator, LinUCB,
-IGP-UCB, ESTOR/GSTOR all exist and should be implemented from the papers without
-improvisation. The novelty begins at **§2.1**: no published work federates a single-index
-bandit. The specific new objects are (i) the **one-shot federated Stein estimator** and its
-concentration lemma, (ii) the **cooperative sleeping-bandit instantiation of Proposition
-4.7**, (iii) the **communication–regret trade-off curve** for an unknown-link bandit, and
-(iv) optionally the **clustered-index (IFCA-style) variant**. Of these, (i) is the one to
-protect: it is small, provable, high-contrast against the `N`-independent-learners baseline,
-and it is the reason the whole approach works.
+| Component | Baseline (Part A, done) | Improvement (Part B) | Expected effect |
+|---|---|---|---|
+| Direction estimate | one agent, `T₀` samples | **one-shot average of `N` local Stein estimators** | same accuracy from `T₀/N` rounds each; **exact** pooling, 1 message |
+| Bin statistics | private `(n_j, S_j)` | shared over graph `G` | statistical pooling; gain limited by spectral gap |
+| Communication | none | interval / event-triggered / quantized | measure regret **per byte** |
+| Safety | none | pessimistic LCB over bins from a 2nd Stein estimator | low violation rate at modest regret cost |
+| Heterogeneity | one global `θ*` | `M` unknown clusters, IFCA-style | avoid negative transfer |
 
 ---
 
-## Proposed repo layout
+## Timeline
 
-```
-src/
-  envs.py        SIBEnv, link functions, score functions
-  stein.py       truncated + normalized Stein estimator
-  zoomsib.py     single-agent ZoomSIB-UCB (Algorithm 1)
-  baselines.py   Random, LinUCB, ESTOR, GSTOR, IGP-UCB
-  fed_stein.py   one-shot / gossip averaging of Stein estimators   ← novel
-  coop_bins.py   cooperative sleeping-UCB over bins, graph topologies ← novel
-  comms.py       interval / event-triggered / quantized protocols   ← novel
-  safe.py        (Option A) safety filter
-  ifca_sib.py    (Option B) clustered indices
-experiments/     one script per figure, seeds fixed
-results/         cached .npz + generated .pdf figures
-docs/            this folder
-slides/          pitch + final decks
-papers/          the seven PDFs
-```
+| Window | Work |
+|---|---|
+| ~~to 28 Sep~~ | ~~pitch~~ · **Part A complete ahead of schedule** |
+| 29 Sep – 12 Oct | **B.1** federated Stein averaging + E-A/E-B + theory task T-A |
+| 13 – 22 Oct | **B.2** cooperative Phase 2, graph topologies |
+| 23 – 29 Oct | **B.3** communication ablations |
+| 30 Oct – 5 Nov | **B.4** one extension |
+| 5 – 12 Nov | final deck + report, ≥20 seeds with CIs on every plot |
 
 ---
 
@@ -251,8 +208,8 @@ papers/          the seven PDFs
 
 | Risk | Mitigation |
 |---|---|
-| Federated Phase-1 proof stalls | Empirical E-A/E-B still stands; report as a conjecture with evidence |
-| `T₀` from theory too large to simulate | Use the adaptive stopping rule (Dey et al. do this too) |
-| Non-Gaussian contexts make `S(x)` messy | Stay Gaussian for the main results; one non-Gaussian robustness plot at most |
-| Scope creep into robotics | Robot fleet is *one* motivating slide; no simulator on the critical path |
-| Both extensions attempted, neither finished | Hard decision point on 29 Oct — pick one |
+| Federated Phase-1 proof stalls | E-A/E-B still stand; report as a conjecture with evidence |
+| Theoretical `T₀` too large to simulate | already handled — adaptive stopping, validated in Part A |
+| Phase-2 cooperative gain turns out small | that is itself the finding, and B.3 makes it a *positive* result about cheap communication |
+| Scope creep into robotics | the robot fleet is one motivating slide; no simulator on the critical path |
+| Both extensions attempted, neither finished | hard decision point 29 Oct — pick one |

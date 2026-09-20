@@ -1,0 +1,48 @@
+# --- Python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# --- LaTeX build artefacts -------------------------------------------------
+# The compiled decks (slides/**/main.pdf) ARE tracked; only the by-products
+# of a build are ignored.
+*.aux
+*.log
+*.nav
+*.out
+*.snm
+*.toc
+*.vrb
+*.bbl
+*.bcf
+*.blg
+*.run.xml
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+build.log
+
+# --- Third-party papers ----------------------------------------------------
+# The reference PDFs (~12 MB) are already tracked from an earlier commit, so
+# they are deliberately NOT ignored here -- an ignore rule would be inert for
+# files git already knows about. To drop them from the repo instead, run
+#     git rm --cached papers/*.pdf
+# and uncomment the next line; `python experiments/fetch_papers.py` re-downloads them.
+# papers/*.pdf
+
+# --- Experiment caches -----------------------------------------------------
+# Raw per-trial arrays are regenerable; the figures they produce are tracked.
+results/*.npz
+results/*.pkl
+
+# --- OS / editor -----------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+scratch/

@@ -158,7 +158,7 @@
     \textcolor{blue!60!black}{\textbf{Dey, Bhore \& Ghosh '26 (\textsc{ZoomSIB-UCB})}}
                                             & \yes & \no  & \no  & \yes\ {\tiny$\tilde\Theta(T^{2/3})$}\\
     \midrule
-    \alert{\textbf{This project (Fed-ZoomSIB)}} & \yes & \yes & \yes & \yes\\
+    \alert{\textbf{This project (Fed-ZoomSIB)}} & \yes & \yes & (ext.) & \textbf{?}\\
     \bottomrule
   \end{tabular}
 
@@ -202,11 +202,11 @@
 %=====================================================================
 \section{Approach}
 %=====================================================================
-\begin{frame}{Why it should work: two phases, two different gains}
+\begin{frame}{Why this algorithm invites federation}
 
   \small
-  \textsc{ZoomSIB-UCB} (Dey, Bhore \& Ghosh '26) is two-phase --- and the phases federate
-  for \emph{different reasons}.
+  \textsc{ZoomSIB-UCB} (Dey, Bhore \& Ghosh '26) is two-phase, and each phase is
+  shareable --- but by a \emph{different mechanism}.
 
   \vspace{0.3em}
   \begin{columns}[T]
@@ -214,26 +214,20 @@
       \begin{block}{Phase 1 --- estimate $\theta_*$}
         \footnotesize
         Truncated Stein estimator over $T_0$ rounds.\\[0.3em]
-        \alert{It is a \textbf{sample mean}} $\Rightarrow$ averaging across agents
-        \textbf{equals} the centralized estimator on pooled data.\\[0.3em]
-        Exact federation, \textbf{one} message of $d$ numbers.
-        \vspace{-0.4em}
-        \[ T_0 = \tilde O\!\left(\tfrac{d^2T^{2/3}}{\alert{N}}\right) \]
-        \vspace{-1.2em}
-        \begin{center}\alert{\textbf{factor $N$}}\end{center}
+        \alert{It is a \textbf{sample mean}} --- so averaging local estimators is
+        \textbf{algebraically identical} to the centralized estimator on pooled
+        data.\\[0.3em]
+        Exact federation, \textbf{one} message of $d$ numbers, no consensus
+        iterations, no approximation.
       \end{block}
     \end{column}
     \begin{column}{0.48\textwidth}
       \begin{block}{Phase 2 --- UCB over bins}
         \footnotesize
         $N_{\mathrm{bins}}=O(T^{1/3})$ bins on the index line; \emph{sleeping} UCB.\\[0.3em]
-        Per-bin statistics $(n_j,S_j)$ are two scalars $\Rightarrow$ a standard
-        cooperative MAB over $G$.\\[0.3em]
-        Exploration concentrates only as $\sqrt{\cdot}$:
-        \vspace{-0.4em}
-        \[ \tilde O\!\big(\sqrt{N_{\mathrm{bins}}\,\alert{N}\,T}\big) \]
-        \vspace{-1.2em}
-        \begin{center}\alert{\textbf{factor $\sqrt{N}$}}\end{center}
+        The entire learner state is \textbf{two scalars per bin} $(n_j,S_j)$ ---
+        so sharing it is a standard cooperative MAB over the graph $G$.\\[0.3em]
+        Cheap to communicate, but the pooling is statistical, not exact.
       \end{block}
     \end{column}
   \end{columns}
@@ -242,36 +236,37 @@
   \vspace{0.2em}
   \footnotesize
   Prop.~4.7 of Dey et al.\ is a \textbf{modular reduction}: \emph{any} sleeping-bandit
-  subroutine plugs into Phase 2 --- and a cooperative one is exactly that.
+  subroutine may be substituted into Phase 2 --- and a cooperative one is exactly that.
 
 \end{frame}
 
 %=====================================================================
-\begin{frame}{Target result}
+\begin{frame}{What we set out to answer}
 
-  \begin{block}{Conjectured main theorem}
-    \vspace{-0.6em}
-    \begin{align*}
-      \text{Network:} \quad & R_T(N) \;=\; \tilde O\big( d^2 T^{2/3} \;+\; \sqrt{N}\,T^{2/3} \big)\\[0.3em]
-      \text{Per agent:} \quad & R_T(N)/N \;=\; \tilde O\big( d^2 T^{2/3}/N \;+\; T^{2/3}/\sqrt{N} \big)
-    \end{align*}
-    versus $N\cdot\tilde O(d^2T^{2/3})$ for $N$ independent learners.
+  We are \emph{not} claiming a rate in advance. The algorithm splits into two
+  independently shareable pieces; how much each one buys is exactly what we
+  intend to measure.
+
+  \vspace{0.4em}
+  \begin{block}{Research questions}
+    \small
+    \begin{enumerate}
+      \item Does sharing reduce \textbf{per-agent} regret in a single-index bandit,
+            and by how much?
+      \item The two phases pool very differently --- an \emph{exact} average versus a
+            statistical one. \alert{Does the benefit split unevenly between them?}
+      \item \textbf{How little communication is enough?} Phase 1 needs a single
+            message; can Phase 2 be made nearly as cheap?
+      \item How does any gain scale with $N$, with dimension $d$, and with the
+            graph topology (spectral gap $1-|\lambda_2|$)?
+    \end{enumerate}
   \end{block}
 
   \pause
-  \begin{alertblock}{The interesting asymmetry}
-    \small
-    \emph{Estimation} cost amortizes \textbf{fully} across the network; \emph{exploration}
-    cost only as $\sqrt{N}$.
-    $\Rightarrow$ \textbf{falsifiable prediction:} collaboration helps \emph{more} in
-    higher dimension --- testable by sweeping $d$ at fixed $N$.
-  \end{alertblock}
-
-  \pause
   \footnotesize
-  \textbf{Extensions.} \textbf{(a)} \emph{Safety}: unknown constraint
-  $h(\langle x,\mu_*\rangle)\le c$ via a second Stein estimator.
-  \textbf{(b)} \emph{Clustered indices}: $M$ unknown groups $\theta_*^{(m)}$, IFCA-style.
+  \textbf{If time permits.} \textbf{(a)} \emph{Safety}: an unknown constraint
+  $h(\langle x,\mu_*\rangle)\le c$.
+  \textbf{(b)} \emph{Clustered indices}: agents in $M$ unknown groups, IFCA-style.
 
 \end{frame}
 

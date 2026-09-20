@@ -5,6 +5,14 @@ from __future__ import annotations
 import os
 from concurrent.futures import ProcessPoolExecutor
 
+# Each trial is a separate process, so a multi-threaded BLAS inside every
+# worker would oversubscribe the machine badly.  Children inherit this
+# environment, and they import numpy after the fork/spawn, so setting it here
+# is enough.
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
+           "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
+    os.environ.setdefault(_v, "1")
+
 import numpy as np
 
 from .base import env_info_from, run_episode
