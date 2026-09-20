@@ -1,0 +1,152 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+
+\title{Quick Instructions for Beamer Slides}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Create a Slide}
+Basic frame:
+\begin{verbatim}
+\section{Section Title}
+\begin{frame}{Slide Title}
+  Your bullet points / content here.
+\end{frame}
+\end{verbatim}
+
+Long slides (auto-break):
+\begin{verbatim}
+\begin{frame}[allowframebreaks]{Long Title}
+  ...
+\end{frame}
+\end{verbatim}
+
+Code on a slide (use \texttt{[fragile]}):
+\begin{verbatim}
+\begin{frame}[fragile]{Code Example}
+\begin{lstlisting}[language=Python]
+for i in range(5):
+    print(i)
+\end{lstlisting}
+\end{frame}
+\end{verbatim}
+
+\section*{Lists}
+\begin{verbatim}
+\begin{itemize}
+  \item First
+  \item Second
+\end{itemize}
+
+\begin{enumerate}
+  \item Step 1
+  \item Step 2
+\end{enumerate}
+\end{verbatim}
+
+\section*{Math}
+Inline: \verb|$a^2+b^2=c^2$| \\
+Display:
+\begin{verbatim}
+\[
+  E = mc^2
+\]
+\end{verbatim}
+Aligned:
+\begin{verbatim}
+\begin{align*}
+  \nabla\cdot \mathbf{E} &= \frac{\rho}{\varepsilon_0},\\
+  \nabla\times \mathbf{E} &= -\frac{\partial \mathbf{B}}{\partial t}.
+\end{align*}
+\end{verbatim}
+
+\section*{Images}
+Single image (centered):
+\begin{verbatim}
+\begin{frame}{Figure}
+  \centering
+  \includegraphics[width=0.7\linewidth]{figures/my_plot.png}
+  \captionof{figure}{A helpful caption.}
+\end{frame}
+\end{verbatim}
+
+Resize options: use \verb|width=|, \verb|height=|, \verb|scale=|, and \verb|keepaspectratio|.
+\begin{verbatim}
+\includegraphics[width=\linewidth]{img.png}
+\includegraphics[height=0.4\textheight,keepaspectratio]{img.png}
+\includegraphics[scale=0.8]{img.png}
+\end{verbatim}
+
+Two images side-by-side (columns):
+\begin{verbatim}
+\begin{frame}{Side-by-Side}
+\begin{columns}[T]
+  \begin{column}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{img1.png}
+    \captionof{figure}{Left}
+  \end{column}
+  \begin{column}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{img2.png}
+    \captionof{figure}{Right}
+  \end{column}
+\end{columns}
+\end{frame}
+\end{verbatim}
+
+\section*{Tables}
+\begin{verbatim}
+\begin{frame}{Table}
+\centering
+\begin{tabular}{lcr}
+\toprule
+Left & Center & Right \\
+\midrule
+A    & B      & C \\
+\bottomrule
+\end{tabular}
+\end{frame}
+\end{verbatim}
+
+\section*{Code Listings (listings)}
+Global style is already set in \texttt{main.tex}. Per-snippet options:
+\begin{verbatim}
+\begin{lstlisting}[language=Python, caption={Quick demo}]
+def f(x):
+    return x**2
+\end{lstlisting}
+\end{verbatim}
+
+\section*{Citations and References (biblatex)}
+Add entries to \texttt{refs.bib}, then cite and print:
+\begin{verbatim}
+As shown in \cite{key2025}, ...
+\begin{frame}[allowframebreaks]{References}
+  \printbibliography
+\end{frame}
+\end{verbatim}
+
+\section*{Including External Content}
+Keep slides modular and include:
+\begin{verbatim}
+% In main.tex
+\input{content/01_intro}
+\input{content/02_theory}
+\end{verbatim}
+
+
+\end{document}
