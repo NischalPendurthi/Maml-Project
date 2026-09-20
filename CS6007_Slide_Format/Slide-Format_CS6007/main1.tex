@@ -1,0 +1,127 @@
+\documentclass[11pt]{beamer}
+
+% Theme
+\usetheme{Madrid}
+\usecolortheme{beaver}
+\usefonttheme{professionalfonts}
+
+% Packages
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{arrows,positioning}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{epstopdf}
+\usepackage{mathrsfs}
+\usepackage{booktabs}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+
+% Bibliography (uncomment refs frame at bottom to show)
+\usepackage{biblatex}
+\addbibresource{refs.bib}
+
+% Code style
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{red!60!black},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single
+}
+
+% Title
+%\title[Lecture No.]{Topic Name}
+%\author[name1\\name2]{\textcolor{blue}{Name1 \\ Name 2}\\ \scriptsize Dept. of CSE, IIT Bombay}
+%\institute[IIT Bombay]{IIT Bombay}
+% \date{\small July 31, 2025}
+
+
+
+% Title
+\title[CS6007 Lecture: Lecture Name]{Presentation on Topic Name}
+
+% Title
+\title[CS6007 Lecture]{Presentation on Topic Name}
+
+% Show ONLY names in the bottom-left footer via the optional [] argument
+\author[Name 1, Name 2]{%
+  \textbf{Presented by:}\\
+  \begin{tabular}{rl}
+    \textcolor{blue}{Name 1(roll no.)} & Dept. of CSE \\
+    \textcolor{blue}{Name 2(Roll no)} & Dept. of CSE \\
+  \end{tabular}\\[1em]
+  \textbf{Course:} CS6007:Multi-Agent Machine Learning\\[0.3em]
+  \textbf{Instructor:} Prof.\ Avishek Ghosh
+}
+
+\institute[IIT Bombay]{IIT Bombay}
+% \date{\small August 2025}
+
+
+
+
+% Small logo on each frametitle (top-right)
+\addtobeamertemplate{frametitle}{}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=north east, xshift=0.2cm, yshift=0.4cm] at (current page.north east) {%
+      \includegraphics[height=1.2cm]{iitb_logo.png}%
+    };
+  \end{tikzpicture}%
+}
+
+\begin{document}
+
+% Title slide with faint logo background
+\usebackgroundtemplate{%
+  \tikz[remember picture,overlay] \node[opacity=0.2] at ([yshift=-2cm]current page.center) {%
+    \includegraphics[width=0.6\paperwidth]{iitb_logo.png}%
+  };
+}
+\begin{frame}
+  \titlepage
+\end{frame}
+\usebackgroundtemplate{} % clear background
+
+% Outline
+\begin{frame}{Outline}
+  \setbeamertemplate{section in toc}[sections numbered]
+  \tableofcontents
+\end{frame}
+
+%--------------------------------------------------
+% Content (examples below — replace with your inputs)
+% \section{Introduction}
+% \begin{frame}{Introduction}
+%   \begin{itemize}
+%     \item Motivation
+%     \item Objectives
+%     \item Outline of talk
+%   \end{itemize}
+% \end{frame}
+
+
+
+
+
+
+
+
+
+% External slide file (thank-you)
+\input{Thank_you_Slide}
+
+% References
+% \begin{frame}[allowframebreaks]{References}
+%   \printbibliography
+% \end{frame}
+
+\end{document}
