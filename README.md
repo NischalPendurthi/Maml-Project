@@ -116,6 +116,43 @@ cd slides/pitch && pdflatex main.tex
 
 ---
 
+## Knowledge map
+
+An interactive dependency graph of the seven reference papers plus this project's own
+conjectures: **100 nodes** (assumptions, lemmas, theorems, algorithms, bounds, open
+problems) joined by **165 typed edges**, 35 of which cross paper boundaries.
+
+```bash
+cd viz && python3 -m http.server 8000     # then open http://localhost:8000
+node viz/tools/check.mjs                  # validate the data (schema, cycles, provenance)
+node viz/tools/bake-layout.mjs            # re-bake positions after editing node data
+```
+
+Three views over the same data, because the x axis is **time in every one of them** --
+switching modes only ever moves nodes vertically, so the chronology never reshuffles:
+
+| View | Clusters are | Reading across a row |
+|---|---|---|
+| **Concept** (default) | the ten concept lanes | one idea evolving, 2017 → ours |
+| **Timeline** | the eight papers | one paper's whole contribution |
+| **Matrix** | concept × paper cells | the gap table, literally |
+
+The collapsed Concept view is worth a look on its own: each lane is a full-width bar whose
+shaded segments sit under exactly the papers that contributed to it, so the empty cells of
+[`docs/01-literature-and-problem.md`](docs/01-literature-and-problem.md) §3 are visible at a
+glance -- *Safety* is blank until Amani & Thrampoulidis 2021, *Index estimation* until Kang
+et al. 2026.
+
+Clicking a node opens its formal statement in LaTeX, its proof, the assumptions it consumes,
+and a deep link into the source PDF at the right page. Cross-paper edges carry a prose
+`note` saying **why** the relation holds -- those are the claims this project rests on. The
+detail slider pulls in supporting lemmas; the search box expands whatever cluster hides a hit.
+
+Authoring is plain `.js` under `viz/data/`, one file per paper plus `cross-edges.js`. Not
+JSON: Chrome blocks `fetch()` of local files from a `file://` page, and `String.raw` lets
+LaTeX be pasted verbatim from the source with no escaping. `viz/validate.js` runs on every
+page load and reports dangling ids, cycles, misfiled edges and the proof-status census.
+
 ## Repository layout
 
 ```
@@ -133,6 +170,11 @@ results/         generated figures (.npz caches are gitignored)
 docs/            literature review, roadmap, Phase-1 results
 slides/pitch/    5-minute pitch deck (LaTeX, course template)
 papers/          reference PDFs (see fetch_papers.py)
+
+viz/             interactive knowledge map (no build step, no npm install)
+  data/          one .js per paper + cross-edges.js; hand-edited
+  tools/         check.mjs (validate) · bake-layout.mjs · make-artifact.mjs
+  vendor/        cytoscape, expand-collapse, KaTeX -- vendored for offline use
 ```
 
 ### Algorithms

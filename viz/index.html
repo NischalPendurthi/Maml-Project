@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fed-ZoomSIB Knowledge Map</title>
+
+<!-- Vendored local-first so the page works offline and on lecture-hall wifi.
+     KaTeX's CSS resolves fonts/*.woff2 relative to itself, so vendor/fonts/
+     must travel with it. -->
+<link rel="stylesheet" href="vendor/katex.min.css">
+<link rel="stylesheet" href="km.css">
+</head>
+<body>
+
+<div id="app">
+
+  <div id="bar">
+    <div id="brand">
+      <h1>Fed-ZoomSIB</h1>
+      <span class="sub">Knowledge Map &middot; CS6007</span>
+    </div>
+
+    <div class="group">
+      <span class="lbl">View</span>
+      <div class="seg" id="modes" role="group" aria-label="View mode">
+        <button data-mode="concept"  aria-pressed="true">Concept</button>
+        <button data-mode="timeline" aria-pressed="false">Timeline</button>
+        <button data-mode="matrix"   aria-pressed="false">Matrix</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <span class="lbl">Detail</span>
+      <input type="range" id="tier" min="1" max="3" step="1" value="1"
+             aria-label="Detail tier">
+      <span id="tierVal">—</span>
+    </div>
+
+    <div class="group">
+      <button class="plain" id="expandAll">Expand all</button>
+      <button class="plain" id="collapseAll">Collapse all</button>
+    </div>
+
+    <div class="group">
+      <input id="search" type="search" placeholder="Search  /" aria-label="Search nodes">
+      <button class="plain" id="themeBtn">Dark</button>
+    </div>
+  </div>
+
+  <div id="axis" aria-hidden="true"></div>
+
+  <div id="stage">
+    <div id="cy"></div>
+
+    <div id="hint">Click a cluster to expand it &middot; click a node for its statement and proof</div>
+
+    <div id="legend">
+      <h4>Colour = year</h4>
+      <div class="yrs">
+        <span style="background:var(--tint-2017);border:1px solid var(--yr-2017)">17</span>
+        <span style="background:var(--tint-2020);border:1px solid var(--yr-2020)">20</span>
+        <span style="background:var(--tint-2021);border:1px solid var(--yr-2021)">21</span>
+        <span style="background:var(--tint-2026);border:1px solid var(--yr-2026)">26</span>
+        <span style="background:var(--tint-ours);border:1px solid var(--yr-ours)">us</span>
+      </div>
+      <div class="row"><span class="sw" style="background:var(--tint-ours);border:1.5px solid var(--ours)"></span>
+        our own conjectures</div>
+      <hr>
+      <h4>Shape = kind</h4>
+      <div class="row">▭ theorem &middot; ▬ lemma &middot; ◇ algorithm</div>
+      <div class="row">⬡ conjecture &middot; ⬭ assumption</div>
+      <hr>
+      <h4>Edges</h4>
+      <div class="row">thick &rarr; supersedes &middot; dashed &rarr; motivates</div>
+      <div class="row">⊣ &rarr; apparent tension (not a contradiction)</div>
+      <div class="row">dotted border &rarr; proof not yet transcribed</div>
+      <hr>
+      <div class="group">
+        <button class="plain" id="focusBtn">Focus selected</button>
+        <button class="plain" id="clearFocusBtn">Clear</button>
+      </div>
+    </div>
+
+    <aside id="panel" aria-label="Node detail">
+      <button id="panelClose" aria-label="Close panel">&times;</button>
+      <header>
+        <div class="kicker" id="panelKicker"></div>
+        <h2 id="panelTitle"></h2>
+        <div class="src" id="panelSrc"></div>
+      </header>
+      <div id="panelBody"></div>
+    </aside>
+  </div>
+
+</div>
+
+<script src="vendor/cytoscape.min.js"></script>
+<script src="vendor/cytoscape-expand-collapse.js"></script>
+<script src="vendor/katex.min.js"></script>
+
+<script>
+  /* Register the layout/behaviour extension once, before km.js runs. */
+  if (typeof cytoscape !== 'undefined' && typeof cytoscapeExpandCollapse !== 'undefined') {
+    cytoscape.use(cytoscapeExpandCollapse);
+  }
+</script>
+
+<!-- Data. meta.js first (it defines the registry), cross-edges.js last (both
+     endpoints must already exist), positions.js is generated. -->
+<script src="data/meta.js"></script>
+<script src="data/p1-chowdhury-gopalan-2017.js"></script>
+<script src="data/p2-ghosh-2017.js"></script>
+<script src="data/p3-dubey-pentland-2020.js"></script>
+<script src="data/p4-amani-thrampoulidis-2021.js"></script>
+<script src="data/p5-kang-2026.js"></script>
+<script src="data/p6-arya-2026.js"></script>
+<script src="data/p7-dey-bhore-ghosh-2026.js"></script>
+<script src="data/p8-fedzoomsib-conjecture.js"></script>
+<script src="data/cross-edges.js"></script>
+<script src="data/positions.js"></script>
+
+<script src="validate.js"></script>
+<script src="km.js"></script>
+
+</body>
+</html>
