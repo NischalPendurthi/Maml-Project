@@ -403,6 +403,7 @@
         cueEnabled: true,
         expandCollapseCuePosition: 'top-left',
         expandCollapseCueSize: 13,
+        zIndex: 2,
         animationDuration: 0
       });
 

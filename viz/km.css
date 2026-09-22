@@ -226,6 +226,7 @@ button.plain:hover { border-color: var(--ink-3); color: var(--ink); }
 /* ---------------------------------------------------------------- canvas -- */
 #stage { position: relative; min-height: 0; }
 #cy { position: absolute; inset: 0; }   /* relative parent: the cue canvas needs it */
+#cy { position: absolute; inset: 0; z-index: 1; }   /* relative parent with stacking context */
 
 #hint {
   position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
