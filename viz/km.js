@@ -37,7 +37,7 @@
   /* Container id for a node under the current mode. */
   function containerOf(id) {
     var n = KM.nodes[id];
-    if (mode === 'concept')  return 'C:' + n.concept;
+    if (mode === 'concept') return 'C:' + n.concept;
     if (mode === 'timeline') return 'P:' + n.paper;
     return 'M:' + n.concept + '|' + n.paper;
   }
@@ -88,7 +88,7 @@
         year: m.year || 'mixed', count: members.length,
         caption: m.label + '\n' + members.length + (members.length === 1 ? ' node' : ' nodes'),
         capline: m.label + '   \u00b7   ' + members.length +
-                 (members.length === 1 ? ' node' : ' nodes')
+          (members.length === 1 ? ' node' : ' nodes')
       };
 
       /* A concept cluster spans every year, so it has no single position on the
@@ -175,20 +175,20 @@
   /* Edge semantics are dash pattern + arrowhead + width, NEVER colour — the
      colour budget is spent on the year ramp and the one "ours" accent. */
   var EDGE = {
-    'depends-on':       { dash: [],      w: 1.3, arrow: 'triangle' },
-    'assumes':          { dash: [3, 3],  w: 1.1, arrow: 'triangle' },
-    'proves':           { dash: [],      w: 1.9, arrow: 'triangle' },
-    'improves-on':      { dash: [],      w: 2.2, arrow: 'triangle-backcurve' },
-    'supersedes':       { dash: [],      w: 3.0, arrow: 'triangle-backcurve' },
-    'matches':          { dash: [6, 3],  w: 2.4, arrow: 'triangle' },
-    'motivates':        { dash: [7, 4],  w: 1.7, arrow: 'vee' },
-    'resolves':         { dash: [7, 4],  w: 2.4, arrow: 'vee' },
-    'reduces-to':       { dash: [],      w: 2.6, arrow: 'diamond' },
-    'instantiates':     { dash: [2, 3],  w: 1.5, arrow: 'vee' },
-    'reuses-tool':      { dash: [2, 4],  w: 1.3, arrow: 'vee' },
-    'baseline-for':     { dash: [1, 4],  w: 1.2, arrow: 'circle' },
-    'generalizes':      { dash: [5, 3],  w: 1.6, arrow: 'triangle-tee' },
-    'apparent-tension': { dash: [4, 4],  w: 2.0, arrow: 'tee' }
+    'depends-on': { dash: [], w: 1.3, arrow: 'triangle' },
+    'assumes': { dash: [3, 3], w: 1.1, arrow: 'triangle' },
+    'proves': { dash: [], w: 1.9, arrow: 'triangle' },
+    'improves-on': { dash: [], w: 2.2, arrow: 'triangle-backcurve' },
+    'supersedes': { dash: [], w: 3.0, arrow: 'triangle-backcurve' },
+    'matches': { dash: [6, 3], w: 2.4, arrow: 'triangle' },
+    'motivates': { dash: [7, 4], w: 1.7, arrow: 'vee' },
+    'resolves': { dash: [7, 4], w: 2.4, arrow: 'vee' },
+    'reduces-to': { dash: [], w: 2.6, arrow: 'diamond' },
+    'instantiates': { dash: [2, 3], w: 1.5, arrow: 'vee' },
+    'reuses-tool': { dash: [2, 4], w: 1.3, arrow: 'vee' },
+    'baseline-for': { dash: [1, 4], w: 1.2, arrow: 'circle' },
+    'generalizes': { dash: [5, 3], w: 1.6, arrow: 'triangle-tee' },
+    'apparent-tension': { dash: [4, 4], w: 2.0, arrow: 'tee' }
   };
 
   function buildStyle() {
@@ -206,7 +206,8 @@
     var edge = cssVar('--edge'), edgeStr = cssVar('--edge-str'), surface = cssVar('--surface');
 
     var s = [
-      { selector: 'node[kind="node"]', style: {
+      {
+        selector: 'node[kind="node"]', style: {
           'label': 'data(label)', 'font-family': 'IBM Plex Sans, system-ui, sans-serif',
           'font-size': 11, 'font-weight': 500, 'color': ink,
           'text-valign': 'center', 'text-halign': 'center',
@@ -216,8 +217,10 @@
           'shape': 'round-rectangle',
           'transition-property': 'opacity, background-color, border-color',
           'transition-duration': '160ms'
-      }},
-      { selector: 'node[kind="container"]', style: {
+        }
+      },
+      {
+        selector: 'node[kind="container"]', style: {
           'label': function (e) { return e.data('label'); },
           'font-family': 'Source Serif 4, Georgia, serif',
           'font-size': 15, 'font-weight': 600, 'color': ink,
@@ -226,10 +229,12 @@
           'border-width': 1.2, 'border-style': 'dashed', 'border-color': cssVar('--line-2'),
           'shape': 'round-rectangle', 'padding': '22px',
           'z-compound-depth': 'bottom'
-      }},
+        }
+      },
       /* A collapsed container is a real object, not a bounding box: solid fill,
          solid border, its member count on a second line. */
-      { selector: 'node.cy-expand-collapse-collapsed-node', style: {
+      {
+        selector: 'node.cy-expand-collapse-collapsed-node', style: {
           'label': 'data(caption)',
           'background-color': cssVar('--surface-2'), 'background-opacity': 1,
           'border-style': 'solid', 'border-width': 2, 'border-color': cssVar('--line-2'),
@@ -237,10 +242,12 @@
           'text-valign': 'center', 'text-halign': 'center', 'text-margin-y': 0,
           'font-size': 17, 'text-wrap': 'wrap', 'text-max-width': 168,
           'line-height': 1.35, 'color': ink
-      }},
+        }
+      },
       /* Collapsed concept lane: a full-width bar, its gradient segments sitting
          under the papers that contributed. */
-      { selector: 'node.cy-expand-collapse-collapsed-node[laneBar=1]', style: {
+      {
+        selector: 'node.cy-expand-collapse-collapsed-node[laneBar=1]', style: {
           'width': Math.max(640, (KM.extent.x1 - KM.extent.x0) + 260), 'height': 52,
           'background-fill': 'linear-gradient',
           'background-gradient-direction': 'to-right',
@@ -252,39 +259,60 @@
           'text-background-color': cssVar('--surface'), 'text-background-opacity': .82,
           'text-background-padding': 5, 'text-background-shape': 'roundrectangle',
           'border-color': cssVar('--line-2'), 'border-width': 1.2
-      }},
-      { selector: 'edge', style: {
+        }
+      },
+      {
+        selector: 'edge', style: {
           'curve-style': 'straight', 'line-color': edge, 'target-arrow-color': edge,
           'width': 1.3, 'target-arrow-shape': 'triangle', 'arrow-scale': .9,
           'opacity': .75,
           'transition-property': 'opacity, line-color, width', 'transition-duration': '160ms'
-      }},
-      { selector: 'edge[cross=1]', style: {
+        }
+      },
+      {
+        selector: 'edge[cross=1]', style: {
           'line-color': edgeStr, 'target-arrow-color': edgeStr, 'opacity': .95
-      }},
-      { selector: 'edge.bundle-rep', style: {
+        }
+      },
+      {
+        selector: 'edge.bundle-rep', style: {
           'label': function (e) { return e.data('type') + ' ×' + e.data('bundleCount'); },
           'font-family': 'IBM Plex Mono, monospace', 'font-size': 9.5, 'color': ink3,
           'text-background-color': surface, 'text-background-opacity': .9,
           'text-background-padding': 2, 'text-rotation': 'autorotate'
-      }},
+        }
+      },
       { selector: '.faded', style: { 'opacity': .07, 'text-opacity': .07 } },
-      { selector: 'node.hit', style: {
+      {
+        selector: 'node.hit', style: {
           'border-width': 3, 'border-color': cssVar('--accent')
-      }},
-      { selector: 'node:selected', style: {
+        }
+      },
+      {
+        selector: 'node:selected', style: {
           'border-width': 3.4, 'border-color': cssVar('--accent')
-      }},
-      { selector: 'edge.lit', style: { 'opacity': 1, 'width': 3.2, 'line-color': cssVar('--accent'),
-          'target-arrow-color': cssVar('--accent') } },
+        }
+      },
+      {
+        selector: 'edge.lit', style: {
+          'opacity': 1, 'width': 3.2, 'line-color': cssVar('--accent'),
+          'target-arrow-color': cssVar('--accent')
+        }
+      },
       { selector: 'node[pending=1]', style: { 'border-style': 'dotted' } }
     ];
 
     Object.keys(tint).forEach(function (y) {
-      s.push({ selector: 'node[kind="node"][year="' + y + '"]', style: {
-        'background-color': tint[y], 'border-color': ring[y] } });
-      s.push({ selector: 'node[kind="container"][year="' + y + '"]', style: {
-        'background-color': tint[y], 'border-color': ring[y] } });
+      s.push({
+        selector: 'node[kind="node"][year="' + y + '"]', style: {
+          'background-color': tint[y], 'border-color': ring[y]
+        }
+      });
+      s.push({
+        selector: 'node[kind="container"][year="' + y + '"]', style: {
+          'background-color': tint[y], 'border-color': ring[y]
+        }
+      });
     });
 
     Object.keys(SHAPE).forEach(function (t) {
@@ -293,11 +321,13 @@
 
     Object.keys(EDGE).forEach(function (t) {
       var d = EDGE[t];
-      s.push({ selector: 'edge[type="' + t + '"]', style: {
-        'width': d.w, 'target-arrow-shape': d.arrow,
-        'line-style': d.dash.length ? 'dashed' : 'solid',
-        'line-dash-pattern': d.dash.length ? d.dash : undefined
-      }});
+      s.push({
+        selector: 'edge[type="' + t + '"]', style: {
+          'width': d.w, 'target-arrow-shape': d.arrow,
+          'line-style': d.dash.length ? 'dashed' : 'solid',
+          'line-dash-pattern': d.dash.length ? d.dash : undefined
+        }
+      });
     });
 
     return s;
@@ -318,9 +348,9 @@
       cy.edges().forEach(function (e) {
         var src = cy.$id(e.data('source')), tgt = cy.$id(e.data('target'));
         var bothCollapsed = src.hasClass('cy-expand-collapse-collapsed-node') &&
-                            tgt.hasClass('cy-expand-collapse-collapsed-node');
+          tgt.hasClass('cy-expand-collapse-collapsed-node');
         var k = e.data('source') + '|' + e.data('target') +
-                (bothCollapsed ? '' : '|' + e.data('type'));
+          (bothCollapsed ? '' : '|' + e.data('type'));
         (groups[k] = groups[k] || []).push(e.id());
       });
       Object.keys(groups).forEach(function (k) {
@@ -424,7 +454,7 @@
             n.position(c);
             n.style('opacity', 0);
             n.animate({ position: { x: target.x, y: target.y }, style: { opacity: 1 } },
-                      { duration: 420, easing: 'ease-out-cubic' });
+              { duration: 420, easing: 'ease-out-cubic' });
           });
         } else {
           kids.forEach(function (n) {
@@ -515,9 +545,11 @@
     var pending = kids.length;
     kids.forEach(function (n) {
       n.animate({ position: c, style: { opacity: 0 } },
-        { duration: 260, easing: 'ease-in-cubic', complete: function () {
+        {
+          duration: 260, easing: 'ease-in-cubic', complete: function () {
             if (--pending === 0) { ec.collapse(parent); }
-        }});
+          }
+        });
     });
   }
 
@@ -533,7 +565,7 @@
         var el = document.createElement('div');
         el.className = 'tick';
         el.innerHTML = '<b>' + (paper.id === 'p8' ? 'ours' : paper.year) + '</b>' +
-                       escapeHtml(paper.short);
+          escapeHtml(paper.short);
         host.appendChild(el);
         return { el: el, x: lane.x - 40 };
       });
@@ -637,19 +669,19 @@
 
     var st = n.proof.status;
     h += '<div class="sec"><details class="proof"' + (st === 'full' || st === 'sketch' ? ' open' : '') +
-         '><summary>' + PROOF_LABEL[st] + '</summary>';
+      '><summary>' + PROOF_LABEL[st] + '</summary>';
     if (n.proof.body) h += '<div class="prose">' + prose(n.proof.body) + '</div>';
     else if (st === 'pending')
       h += '<div class="prose"><p>Not yet transcribed from the source. ' +
-           (pdf ? 'It is in the paper at <a href="' + pdf + '" target="_blank" rel="noopener">page ' +
-                  n.where.page + '</a>.' : '') + '</p></div>';
+        (pdf ? 'It is in the paper at <a href="' + pdf + '" target="_blank" rel="noopener">page ' +
+          n.where.page + '</a>.' : '') + '</p></div>';
     else h += '<div class="prose"><p>This node states a definition or an assumption; ' +
-              'there is nothing to prove.</p></div>';
+      'there is nothing to prove.</p></div>';
     h += '</details></div>';
 
     if (n.note) {
       h += '<div class="sec"><h3>Why it matters</h3><div class="note' +
-           (n.paper === 'p8' ? ' ours' : '') + '">' + prose(n.note) + '</div></div>';
+        (n.paper === 'p8' ? ' ours' : '') + '">' + prose(n.note) + '</div></div>';
     }
 
     h += relSection('Depends on', KM.incoming(id));
@@ -669,16 +701,16 @@
   function relSection(title, edges) {
     if (!edges.length) return '';
     var h = '<div class="sec"><h3>' + title + ' <span style="color:var(--ink-3)">' +
-            edges.length + '</span></h3><ul class="links">';
+      edges.length + '</span></h3><ul class="links">';
     edges.forEach(function (e) {
       var otherId = (title === 'Depends on') ? e.from : e.to;
       var other = KM.nodes[otherId];
       if (!other) return;
       var p = KM.paperOf(otherId);
       h += '<li><button data-goto="' + escapeHtml(otherId) + '">' +
-           '<span class="rel">' + escapeHtml(e.type) + '</span>' +
-           '<span><b>' + escapeHtml(other.label) + '</b> &middot; ' +
-           escapeHtml(p ? p.short : '') + '</span></button>';
+        '<span class="rel">' + escapeHtml(e.type) + '</span>' +
+        '<span><b>' + escapeHtml(other.label) + '</b> &middot; ' +
+        escapeHtml(p ? p.short : '') + '</span></button>';
       if (e.note) h += '<span class="why">' + escapeHtml(e.note) + '</span>';
       h += '</li>';
     });
@@ -699,8 +731,8 @@
     $('#panelTitle').textContent = n.title || n.label;
     $('#panelSrc').innerHTML = paper
       ? escapeHtml(paper.short) + ', <i>' + escapeHtml(paper.venue) + '</i>' +
-        (pdf ? ' &middot; <a href="' + pdf + '" target="_blank" rel="noopener">§' +
-               escapeHtml(n.where.section) + ', p.' + n.where.page + ' ↗</a>' : '')
+      (pdf ? ' &middot; <a href="' + pdf + '" target="_blank" rel="noopener">§' +
+        escapeHtml(n.where.section) + ', p.' + n.where.page + ' ↗</a>' : '')
       : '';
     $('#panelBody').innerHTML = panelHtml(id);
     $('#panelBody').scrollTop = 0;
