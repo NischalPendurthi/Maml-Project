@@ -1,16 +1,11 @@
-%=====================================================================
-%  CS6007 Project Pitch  (5 minutes)
-%  Federated Single-Index Bandits
-%  Build:  pdflatex main.tex   (twice, for the TOC-free layout no biber needed)
-%=====================================================================
+%====================================================================
+% CS6007 Project Pitch (5 minutes)
+% Federated Single-Index Bandits
+%====================================================================
 \documentclass[11pt]{beamer}
-
-% Theme
 \usetheme{Madrid}
 \usecolortheme{beaver}
 \usefonttheme{professionalfonts}
-
-% Packages
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
@@ -19,397 +14,277 @@
 \usepackage{hyperref}
 \usepackage{tikz}
 \usetikzlibrary{arrows,positioning}
-\usepackage{listings}
-\usepackage{caption}
-\usepackage{subcaption}
-\usepackage{mathrsfs}
 \usepackage{booktabs}
 \usepackage{array}
+\usepackage{pifont}
 
-% Compact itemize for a 5-minute talk
 \setbeamertemplate{navigation symbols}{}
 \setbeamerfont{footnote}{size=\tiny}
-
-\usepackage{pifont}
 \newcommand{\yes}{\textcolor{green!45!black}{\ding{51}}}
 \newcommand{\no}{\textcolor{red!70!black}{\ding{55}}}
 
-%---------------------------------------------------------------------
-% Title
-%---------------------------------------------------------------------
-\title[Federated Single-Index Bandits]{Federated Single-Index Bandits\\
-{\normalsize\itshape Cooperative learning when the reward function itself is unknown}}
-{\normalsize\itshape Cooperative learning when the reward function is unknown}}
-
-\author[Name 1, Name 2]{%
-  \textbf{Presented by:}\\
-  \begin{tabular}{rl}
-    \textcolor{blue}{Name 1 (Roll No.)} & Dept. of CSE \\
-    \textcolor{blue}{Name 2 (Roll No.)} & Dept. of CSE \\
-  \end{tabular}\\[1em]
-  \textbf{Course:} CS6007: Multi-Agent Machine Learning\\[0.3em]
-  \textbf{Instructor:} Prof.\ Avishek Ghosh
-\author[Presenters]{%
-\author[Harshitha \& Nischal]{%
-  \texorpdfstring{%
-    \textbf{Presented by:}\\
-    \begin{tabular}{rl}
-      \textcolor{blue}{Name 1 (Roll No.)} & Dept. of CSE \\
-      \textcolor{blue}{Name 2 (Roll No.)} & Dept. of CSE \\
-      \textcolor{blue}{Harshitha (23b1071)} & Dept. of CSE \\
-      \textcolor{blue}{Nischal (23b1024)} & Dept. of CSE \\
-    \end{tabular}\\[1em]
-    \textbf{Course:} CS6007: Multi-Agent Machine Learning\\[0.3em]
-    \textbf{Instructor:} Prof.\ Avishek Ghosh
-  }{Presenters}%
-  }{Harshitha, Nischal}%
-}
-
+\title[Multi-Agent Single-Index Bandits]{Multi-Agent Single-Index Bandits}
+\subtitle{Learning unknown reward functions collaboratively under communication constraints}
+\author[Harshitha \& Nischal]{\texorpdfstring{\textbf{Presented by:}\\[0.3em]\begin{tabular}{rl}\textcolor{blue}{Harshitha (23b1071)} & Dept. of CSE\\\textcolor{blue}{Nischal (23b1024)} & Dept. of CSE\end{tabular}\\[0.8em]\textbf{Course:} CS6007: Multi-Agent Machine Learning\\[0.2em]\textbf{Instructor:} Prof.\ Avishek Ghosh}{Harshitha, Nischal}}
 \institute[IIT Bombay]{IIT Bombay}
 \date{\small 28 September 2026}
 
-% Small logo on each frametitle (top-right)
 \addtobeamertemplate{frametitle}{}{%
-  \begin{tikzpicture}[remember picture,overlay]
-    \node[anchor=north east, xshift=0.2cm, yshift=0.4cm] at (current page.north east) {%
-      \includegraphics[height=1.2cm]{iitb_logo.png}%
-    };
-  \end{tikzpicture}%
-}
+\begin{tikzpicture}[remember picture,overlay]
+\node[anchor=north east,xshift=0.2cm,yshift=0.4cm] at (current page.north east){\includegraphics[height=1.1cm]{iitb_logo.png}};
+\end{tikzpicture}}
 
 \begin{document}
 
-% Title slide with faint logo background
-\usebackgroundtemplate{%
-  \tikz[remember picture,overlay] \node[opacity=0.2] at ([yshift=-2cm]current page.center) {%
-    \includegraphics[width=0.6\paperwidth]{iitb_logo.png}%
-  };
-}
-\begin{frame}
-  \titlepage
-\end{frame}
+\usebackgroundtemplate{\tikz[remember picture,overlay]\node[opacity=0.15] at ([yshift=-2cm]current page.center){\includegraphics[width=0.6\paperwidth]{iitb_logo.png}};}
+\begin{frame}\titlepage\end{frame}
 \usebackgroundtemplate{}
 
-% (No outline slide: the talk is 5 minutes.)
-
-%=====================================================================
+%====================================================================
 \section{Motivation}
-%=====================================================================
-\begin{frame}{The assumption everybody makes, and why it breaks}
-\begin{frame}{Contextual Bandits with Unknown Links}
-
-  Contextual bandits assume we know how context maps to reward:
-  Standard contextual bandits assume a known relationship between context and reward:
-  \[
-    \mathbb{E}[y \mid x] \;=\; \underbrace{\langle x, \theta_*\rangle}_{\text{linear bandit}}
-    \qquad\text{or}\qquad
-    \underbrace{f(\langle x, \theta_*\rangle)}_{\substack{\text{generalized linear}\\ f \text{ \textbf{known}}}}
-    \underbrace{f(\langle x, \theta_*\rangle)}_{\substack{\text{generalized linear}\\ f \text{ is known}}}
-  \]
-
-  \pause
-  \begin{block}{But the link function is essentially never known}
-    Dose--response, congestion, click-through and user-satisfaction curves are
-    non-monotone and unknown in advance.
-  \begin{block}{Unknown and non-monotone reward profiles}
-    In practical applications like pricing, traffic routing, and dose-response,
-    the mapping $f$ is rarely known beforehand and often non-monotone.
-  \end{block}
-
-  \pause
-  \begin{alertblock}{This is not a mild modelling error}
-    Misspecifying $f$ makes state-of-the-art algorithms incur \textbf{linear regret} ---
-    they do not degrade gracefully, they fail.\footnotemark
-  \begin{alertblock}{Consequence of misspecification}
-    When $f$ is misspecified, standard methods like LinUCB or GLM-UCB suffer
-    \textbf{linear regret} $\Omega(T)$ rather than sublinear growth.\footnotemark
-  \end{alertblock}
-  \footnotetext[1]{Ghosh, Chowdhury \& Gopalan, \emph{Misspecified Linear Bandits}, AAAI 2017.}
-
+%====================================================================
+\begin{frame}{From contextual bandits to an unknown reward function}
+\small
+A contextual bandit chooses an action $x$ using its context and observes a noisy reward $y$.
+\begin{block}{Common models}
+\[
+\mathbb{E}[y\mid x]=\langle x,\theta_*\rangle\quad\text{(Linear)},\qquad \mathbb{E}[y\mid x]=f(\langle x,\theta_*\rangle)\quad\text{(GLM)}.
+\]
+\end{block}
+\begin{center}
+\[
+x\in\mathbb{R}^d\quad\longrightarrow\quad x^\top\theta_*\quad\longrightarrow\quad f(\cdot)\quad\longrightarrow\quad y
+\]
+\end{center}
+\begin{alertblock}{The gap}
+In GLMs, $f$ is known. In many applications, the reward curve is unknown and may be non-monotone.
+\[
+\boxed{\text{What if both }\theta_*\text{ and }f\text{ are unknown?}}
+\]
+\end{alertblock}
 \end{frame}
 
-%=====================================================================
-\section{Problem Statement}
-%=====================================================================
-\begin{frame}{Problem statement: the single-index bandit (SIB)}
-\begin{frame}{Single-Index Bandits (SIB)}
-  \small
-
-  \begin{block}{Model}
-    At round $t$ the learner sees $K$ arms $\mathcal{X}_t=\{x_{t,a}\}_{a\in[K]}$ drawn
-    i.i.d.\ from a density $p$ on $\mathbb{R}^d$; it pulls $x_t$ and observes
-  \begin{block}{System model}
-    At round $t$, the learner observes $K$ arms $\mathcal{X}_t=\{x_{t,a}\}_{a\in[K]}$ drawn
-    i.i.d.\ from density $p$ on $\mathbb{R}^d$, chooses $x_t$, and receives reward
-    \[
-      y_t \;=\; f(\langle x_t,\theta_*\rangle) + \eta_t,
-      \qquad \eta_t \ \sigma\text{-sub-Gaussian},
-    \]
-    with \textbf{both} $\theta_*\in\mathbb{R}^d$ \textbf{and} $f:\mathbb{R}\to\mathbb{R}$
-    \textbf{unknown}. Normalise $\|\theta_*\|_1=1$.
-    where both the index direction $\theta_*\in\mathbb{R}^d$ and the link function $f:\mathbb{R}\to\mathbb{R}$
-    are unknown. We normalize $\|\theta_*\|_1=1$.
-  \end{block}
-
-  \pause
-  \alert{$f$ need not be monotone} $\Rightarrow$ the best arm is \emph{not} the one with
-  the largest projection.
-  \alert{Since $f$ is arbitrary and non-monotone}, picking the arm with the largest projection $\langle x, \theta_*\rangle$ is generally suboptimal.
-
-  \pause
-  \begin{block}{Key tool --- Stein's identity, with score $S(x)=-\nabla\log p(x)$}
-  \begin{block}{Estimating $\theta_*$ via Stein's identity with score $S(x)=-\nabla\log p(x)$}
-    \[
-      \mathbb{E}\big[\,y\,S(x)\,\big]
-      \;=\; \mathbb{E}\big[f'(\langle x,\theta_*\rangle)\big]\,\theta_*
-      \;=\; \mu_*\,\theta_*
-    \]
-    The direction is recoverable by a \textbf{plain sample average} --- with no knowledge
-    of $f$ whatsoever.
-    The expectation isolates the direction $\theta_*$ up to a scalar constant $\mu_*$.
-    This lets us estimate $\theta_*$ directly using empirical sample averages without fitting $f$.
-  \end{block}
-
+%====================================================================
+\begin{frame}{Single-Index Bandits: the problem}
+\small
+\begin{block}{Model}
+At round $t$, the learner observes $K$ arms $\mathcal{X}_t=\{x_{t,a}\}_{a\in[K]}$, chooses $x_t$, and observes
+\[
+\boxed{y_t=f(\langle x_t,\theta_*\rangle)+\eta_t}
+\]
+where $\theta_*\in\mathbb{R}^d$ and $f:\mathbb{R}\rightarrow\mathbb{R}$ are both unknown, with $\|\theta_*\|_1=1$.
+\end{block}
+\begin{center}
+\[
+x_t\in\mathbb{R}^d\quad\xrightarrow{\ \theta_*\ }\quad x_t^\top\theta_*\quad\xrightarrow{\ f\ }\quad y_t
+\]
+\end{center}
+\begin{alertblock}{Why is this hard?}
+If $f$ is non-monotone,
+\[
+x_1^\top\theta_*>x_2^\top\theta_*\quad\not\Rightarrow\quad f(x_1^\top\theta_*)>f(x_2^\top\theta_*).
+\]
+\textbf{The largest projection need not be the best arm.}
+\end{alertblock}
 \end{frame}
 
-%=====================================================================
-\begin{frame}{Where the literature stands}
-\begin{frame}{Prior Literature and Positioning}
-
-  \centering
-  \renewcommand{\arraystretch}{1.2}
-  \setlength{\tabcolsep}{4.5pt}
-  \scriptsize
-  \begin{tabular}{lcccc}
-    \toprule
-    & \textbf{unknown} & \textbf{multi-} & \textbf{safety} & \textbf{optimal} \\
-    & \textbf{link $f$} & \textbf{agent} & \textbf{constr.} & \textbf{rate} \\
-    & \textbf{Unknown} & \textbf{Multi-} & \textbf{Safety} & \textbf{Optimal} \\
-    & \textbf{Link $f$} & \textbf{Agent} & \textbf{Constraints} & \textbf{Regret Rate} \\
-    \midrule
-    Abbasi-Yadkori et al.\ '11 (OFUL)       & \no  & \no  & \no  & ---\\
-    Chowdhury \& Gopalan '17 (IGP-UCB)      & \yes & \no  & \no  & ---\\
-    Dubey \& Pentland '20 (Coop-KernelUCB)  & \yes & \yes & \no  & ---\\
-    Amani \& Thrampoulidis '21 (Safe-DLUCB) & \no  & \yes & \yes & ---\\
-    Kang et al.\ '26 (ESTOR / GSTOR)        & \yes & \no  & \no  & \no\ {\tiny$T^{3/4}$}\\
-    Arya et al.\ '26 (kernel SIB)           & \yes & \no  & \no  & ---\\
-    \textcolor{blue!60!black}{\textbf{Dey, Bhore \& Ghosh '26 (\textsc{ZoomSIB-UCB})}}
-                                            & \yes & \no  & \no  & \yes\ {\tiny$\tilde\Theta(T^{2/3})$}\\
-    \midrule
-    \alert{\textbf{This project (Fed-ZoomSIB)}} & \yes & \yes & (ext.) & \textbf{?}\\
-    \bottomrule
-  \end{tabular}
-
-  \vspace{1em}
-  \pause
-  Every column has been solved individually.\\
-  \alert{No work occupies the last row: single-index bandits have never been federated.}
-  Non-parametric links, multi-agent cooperation, and safety have each been studied separately.\\
-  \alert{To our knowledge, single-index contextual bandits have not been studied in a collaborative or federated setting.}
-
+%====================================================================
+\begin{frame}{Key idea: estimate $\theta_*$ without knowing $f$}
+\small
+Define the score function
+\[
+S(x)=-\nabla\log p(x).
+\]
+Under Stein's identity,
+\[
+\mathbb{E}[yS(x)]=\mathbb{E}\!\left[f'(\langle x,\theta_*\rangle)\right]\theta_*.
+\]
+Let
+\[
+\mu_*=\mathbb{E}\!\left[f'(\langle x,\theta_*\rangle)\right].
+\]
+Then
+\[
+\boxed{\mathbb{E}[yS(x)]=\mu_*\theta_*}
+\]
+so the direction of
+\[
+\boxed{\hat v=\frac{1}{T_0}\sum_{t=1}^{T_0}y_tS(x_t)}
+\]
+estimates the direction of $\theta_*$ without estimating $f$.
+\begin{block}{Key insight}
+\centering
+\textbf{Unknown $f$ does not prevent us from estimating the index direction.}
+\end{block}
 \end{frame}
 
-%=====================================================================
-\section{Our Problem}
-%=====================================================================
-\begin{frame}{Our problem: what does collaboration buy?}
+%====================================================================
+\begin{frame}{The SIB problem reduces to 1-D learning}
+\small
+Once $\theta_*$ is estimated, project each context onto the estimated direction:
+\[
+z=x^\top\hat\theta.
+\]
+\begin{center}
+\[
+x\in\mathbb{R}^d\quad\xrightarrow{\ \hat\theta\ }\quad z=x^\top\hat\theta\in\mathbb{R}\quad\xrightarrow{\ f\ }\quad f(z)
+\]
+\end{center}
+The original $d$-dimensional problem becomes learning an unknown function on a 1-D index.
+\[
+[-1,1]=I_1\cup I_2\cup\cdots\cup I_M,\qquad M=O(T^{1/3}).
+\]
+\begin{block}{ZoomSIB-UCB}
+The index domain is divided into bins, and a sleeping-UCB procedure learns which regions of the unknown reward curve are promising.
+\end{block}
+\end{frame}
+
+%====================================================================
+\section{Federation}
+%====================================================================
 \begin{frame}{Problem Formulation: Multi-Agent SIB}
-
-  \begin{block}{Setting}
-    $N$ agents on a connected graph $G$ with communication matrix $\mathbf{P}$.
-    Each round, every agent $i$ sees its own arm set, pulls $x_{i,t}$, observes
-    Consider $N$ decentralized agents on a connected communication graph $G$.
-    At each round $t$, each agent $i$ observes an independent arm set, pulls $x_{i,t}$, and observes
-    $y_{i,t}=f(\langle x_{i,t},\theta_*\rangle)+\eta_{i,t}$.
-    $f$ and $\theta_*$ are \textbf{shared and unknown}.
-    Agents exchange $\le B$ values with neighbours every $C$ rounds.
-    The parameter $\theta_*$ and link $f$ are identical across agents but unknown.
-    Agents can exchange messages with their neighbors subject to a communication budget.
-  \end{block}
-
-  \begin{block}{Objective --- network regret}
-  \begin{block}{Objective: Cumulative Network Regret}
-    \vspace{-0.6em}
-    \[
-      R_T(N)\;=\;\sum_{t=1}^{T}\sum_{i=1}^{N}
-      \Big[ f(\langle x^*_{i,t},\theta_*\rangle) - f(\langle x_{i,t},\theta_*\rangle) \Big]
-    \]
-  \end{block}
-
-  \pause
-  \begin{center}
-    \large
-    \emph{How much does cooperation help when the reward function itself\\
-    must be learned --- and at what communication cost?}
-    \emph{Can decentralized collaboration improve per-agent regret when neither the index direction nor the link function is known?}
-  \end{center}
-
+\small
+\begin{block}{Setting}
+Consider $N$ decentralized agents on a connected communication graph $G$. At each round $t$, each agent $i$ observes an independent arm set, pulls $x_{i,t}$, and observes $y_{i,t}=f(\langle x_{i,t},\theta_*\rangle)+\eta_{i,t}$. The parameter $\theta_*$ and link $f$ are identical across agents but unknown. Agents can exchange messages with their neighbors subject to a communication budget.
+\end{block}
+\begin{block}{Objective: Cumulative Network Regret}
+\[
+R_T(N)=\sum_{t=1}^{T}\sum_{i=1}^{N}\left[f(\langle x^*_{i,t},\theta_*\rangle)-f(\langle x_{i,t},\theta_*\rangle)\right].
+\]
+\end{block}
+\begin{center}
+\emph{Can decentralized collaboration improve per-agent regret when neither the index direction nor the link function is known?}
+\end{center}
 \end{frame}
 
-%=====================================================================
-\section{Approach}
-%=====================================================================
-\begin{frame}{Why this algorithm invites federation}
-\begin{frame}{Two Sharing Schemes in ZoomSIB-UCB}
-
-  \small
-  \textsc{ZoomSIB-UCB} (Dey, Bhore \& Ghosh '26) is two-phase, and each phase is
-  shareable --- but by a \emph{different mechanism}.
-  \textsc{ZoomSIB-UCB} (Dey, Bhore \& Ghosh '26) operates in two sequential phases.
-  Each phase provides a distinct point of collaboration:
-
-  \vspace{0.3em}
-  \begin{columns}[T]
-    \begin{column}{0.48\textwidth}
-      \begin{block}{Phase 1 --- estimate $\theta_*$}
-      \begin{block}{Phase 1: Estimating $\theta_*$}
-        \footnotesize
-        Truncated Stein estimator over $T_0$ rounds.\\[0.3em]
-        \alert{It is a \textbf{sample mean}} --- so averaging local estimators is
-        \textbf{algebraically identical} to the centralized estimator on pooled
-        data.\\[0.3em]
-        Exact federation, \textbf{one} message of $d$ numbers, no consensus
-        iterations, no approximation.
-        Each agent runs a truncated Stein estimator over $T_0$ initial rounds.\\[0.3em]
-        Because the estimator is a sample mean, averaging local estimates across agents produces the exact pooled centralized estimate in a single message ($d$ floats), with no iterative consensus.
-      \end{block}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \begin{block}{Phase 2 --- UCB over bins}
-      \begin{block}{Phase 2: Binned UCB}
-        \footnotesize
-        $N_{\mathrm{bins}}=O(T^{1/3})$ bins on the index line; \emph{sleeping} UCB.\\[0.3em]
-        The entire learner state is \textbf{two scalars per bin} $(n_j,S_j)$ ---
-        so sharing it is a standard cooperative MAB over the graph $G$.\\[0.3em]
-        Cheap to communicate, but the pooling is statistical, not exact.
-        The projected line $[-1, 1]$ is split into $N_{\mathrm{bins}}=O(T^{1/3})$ intervals, running a sleeping UCB.\\[0.3em]
-        Each agent maintains two running scalars per bin $(n_j,S_j)$. Sharing these statistics across graph $G$ corresponds to a cooperative multi-armed bandit with statistical pooling.
-      \end{block}
-    \end{column}
-  \end{columns}
-
-  \pause
-  \vspace{0.2em}
-  \vspace{0.4em}
-  \footnotesize
-  Prop.~4.7 of Dey et al.\ is a \textbf{modular reduction}: \emph{any} sleeping-bandit
-  subroutine may be substituted into Phase 2 --- and a cooperative one is exactly that.
-  Proposition 4.7 in Dey et al.\ proves a modular reduction: any valid sleeping-bandit subroutine can be used in Phase 2 while preserving regret guarantees. We exploit this by plugging in a cooperative sleeping bandit.
-
+%====================================================================
+\begin{frame}{Fed-ZoomSIB: federate both phases}
+\small
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{block}{Phase 1: Estimate $\theta_*$}
+Each agent computes
+\[
+\hat\theta_i\propto\frac{1}{T_0}\sum_t y_{i,t}S(x_{i,t}).
+\]
+Then agents exchange their local estimates:
+\[
+\boxed{\hat\theta=\frac{1}{N}\sum_{i=1}^{N}\hat\theta_i}
+\]
+\textbf{Exact pooled averaging}\\[-0.2em]
+One $d$-dimensional message.
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{Phase 2: Learn $f$}
+Project:
+\[
+z_{i,t}=x_{i,t}^{\top}\hat\theta.
+\]
+Each agent maintains bin statistics
+\[
+(n_j,S_j).
+\]
+Agents periodically exchange these statistics.
+\textbf{Statistical pooling.}
+\end{block}
+\end{column}
+\end{columns}
+\vspace{0.2em}
+\begin{center}
+\boxed{\text{Phase 1: exact pooling}\qquad\text{vs.}\qquad\text{Phase 2: statistical pooling}}
+\end{center}
 \end{frame}
 
-%=====================================================================
-\begin{frame}{What we set out to answer}
-\begin{frame}{Core Research Questions}
-
-  We are \emph{not} claiming a rate in advance. The algorithm splits into two
-  independently shareable pieces; how much each one buys is exactly what we
-  intend to measure.
-  Rather than assuming theoretical gains upfront, we examine how the two phases contribute to speedup under bandwidth limits.
-
-  \vspace{0.4em}
-  \begin{block}{Research questions}
-  \begin{block}{Questions under investigation}
-    \small
-    \begin{enumerate}
-      \item Does sharing reduce \textbf{per-agent} regret in a single-index bandit,
-            and by how much?
-      \item The two phases pool very differently --- an \emph{exact} average versus a
-            statistical one. \alert{Does the benefit split unevenly between them?}
-      \item \textbf{How little communication is enough?} Phase 1 needs a single
-            message; can Phase 2 be made nearly as cheap?
-      \item How does any gain scale with $N$, with dimension $d$, and with the
-            graph topology (spectral gap $1-|\lambda_2|$)?
-      \item \textbf{Per-agent regret scaling:} Does collaboration yield the expected $O(1/\sqrt{N})$ per-agent regret reduction?
-      \item \textbf{Phase asymmetry:} Phase 1 pooling is algebraically exact, while Phase 2 pooling is statistical. Which phase drives the empirical performance gain?
-      \item \textbf{Communication budgets:} How far can message frequency be reduced (via periodic, event-triggered, or quantized exchanges) before regret degrades?
-      \item \textbf{Network topology:} How sensitive is performance to the graph spectral gap $1-|\lambda_2(\mathbf{P})|$ across different dimensions $d$?
-    \end{enumerate}
-  \end{block}
-
-  \pause
-  \footnotesize
-  \textbf{If time permits.} \textbf{(a)} \emph{Safety}: an unknown constraint
-  $h(\langle x,\mu_*\rangle)\le c$.
-  \textbf{(b)} \emph{Clustered indices}: agents in $M$ unknown groups, IFCA-style.
-  \textbf{Potential extensions:} (a) Safety constraints with unknown threshold functions $h(\langle x,\mu_*\rangle)\le c$; (b) clustered index directions where agents belong to unknown latent groups.
-
+%====================================================================
+\begin{frame}{What do we want to find out?}
+\small
+\begin{block}{1. Does collaboration help?}
+Compare per-agent regret under independent and federated learning:
+\[
+R_T^{\mathrm{federated}}\quad\text{vs.}\quad R_T^{\mathrm{independent}}.
+\]
+\end{block}
+\begin{block}{2. How much communication is enough?}
+Study the tradeoff
+\[
+\boxed{\text{Regret}\quad\leftrightarrow\quad\text{Communication}}
+\]
+using periodic, event-triggered, and quantized exchanges.
+\end{block}
+\begin{block}{3. How does the network matter?}
+Study dependence on the number of agents, dimension, number of arms, and graph connectivity:
+\[
+N,\qquad d,\qquad K,\qquad 1-|\lambda_2(\mathbf P)|.
+\]
+\end{block}
 \end{frame}
 
-%=====================================================================
-\section{Project Plan}
-%=====================================================================
-\begin{frame}{Project plan}
-\begin{frame}{Timeline and Evaluation Plan}
-
-  \scriptsize
-  \renewcommand{\arraystretch}{1.15}
-  \begin{tabular}{p{1.8cm} p{5.3cm} p{3.0cm}}
-  \renewcommand{\arraystretch}{1.2}
-  \begin{tabular}{>{\raggedright\arraybackslash}p{2.0cm} >{\raggedright\arraybackslash}p{5.1cm} >{\raggedright\arraybackslash}p{3.2cm}}
-    \toprule
-    \textbf{Window} & \textbf{Work} & \textbf{Deliverable} \\
-    \textbf{Dates} & \textbf{Milestone} & \textbf{Deliverable} \\
-    \midrule
-    29 Sep -- 10 Oct & Reproduce single-agent \textsc{ZoomSIB-UCB};
-      baselines: Random, LinUCB, ESTOR, GSTOR, IGP-UCB &
-      Regret curve matching Dey et al.\ Fig.~1 \\
-    29 Sep -- 10 Oct & Reproduce single-agent \textsc{ZoomSIB-UCB} and baselines (Random, LinUCB, ESTOR, GSTOR, IGP-UCB) & Regret curves validating reproduction \\
-    \addlinespace
-    11 -- 22 Oct & \alert{Fed-ZoomSIB}: one-shot Stein averaging + cooperative
-      sleeping-UCB over graph topologies & Speed-up plots; federated
-      concentration lemma \\
-    11 -- 22 Oct & Implement Fed-ZoomSIB: decentralized Stein averaging and cooperative sleeping UCB & Speedup curves; finite-time concentration bounds \\
-    \addlinespace
-    23 -- 29 Oct & Communication ablations: interval $C$, event-triggered,
-      quantization & \textbf{Regret per transmitted byte} \\
-    23 -- 29 Oct & Communication ablations: periodic sync, event-triggered updates, and quantization & Regret vs.\ bytes transmitted trade-offs \\
-    \addlinespace
-    30 Oct -- 5 Nov & One extension: safety \emph{or} clustered indices &
-      Violation-rate / negative-transfer study \\
-    30 Oct -- 5 Nov & Investigate safety constraints or clustered agent preferences & Constraint violation and grouping analysis \\
-    \addlinespace
-    5 -- 12 Nov & Final deck + report, $\ge 20$ seeds with CIs & Submission \\
-    5 -- 12 Nov & Benchmarking on synthetic and real datasets, final report and presentation & Project submission \\
-    \bottomrule
-  \end{tabular}
-
-  \vspace{0.6em}
-  \pause
-  \textbf{Evaluation:} network \& per-agent regret; samples to fixed accuracy; messages
-  and bytes; sensitivity to spectral gap $1-|\lambda_2|$; sweeps over $N,d,K$, topology,
-  link shape. Synthetic + KDD Cup 99 and Forest Cover Type, as in Dey et al.
-  \textbf{Evaluation metrics:} Cumulative network regret, per-agent regret, message count, and total communication volume. We test sensitivity across network topologies, $N \in [5, 50]$, dimension $d$, and diverse link profiles on synthetic tasks as well as KDD Cup 99 and Forest Cover Type.
-
+%====================================================================
+\section{Evaluation}
+%====================================================================
+\begin{frame}{Evaluation Plan}
+\scriptsize
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{>{\raggedright\arraybackslash}p{1.8cm}>{\raggedright\arraybackslash}p{5.2cm}>{\raggedright\arraybackslash}p{3.0cm}}
+\toprule
+\textbf{Dates}&\textbf{Work}&\textbf{Deliverable}\\
+\midrule
+29 Sep -- 10 Oct&Reproduce \textsc{ZoomSIB-UCB} and baselines: Random, LinUCB, ESTOR, GSTOR, IGP-UCB&Validated regret curves\\
+\addlinespace
+11 -- 22 Oct&Implement Fed-ZoomSIB: Stein averaging + cooperative sleeping-UCB&Federated speedup curves\\
+\addlinespace
+23 -- 29 Oct&Communication ablations: periodic sync, event-triggered updates, quantization&Regret vs.\ communication\\
+\addlinespace
+30 Oct -- 5 Nov&One extension: safety or clustered index directions&Extension analysis\\
+\addlinespace
+5 -- 12 Nov&Benchmarking, final report, and presentation&Project submission\\
+\bottomrule
+\end{tabular}
+\vspace{0.3em}
+\textbf{Metrics:}\quad Network regret \quad Per-agent regret \quad Messages / bytes
+\[
+\boxed{\text{Vary }N,\ d,\ K,\ \text{topology, and link shape}}
+\]
 \end{frame}
 
-%=====================================================================
-\section{References}
-%=====================================================================
+%====================================================================
+\begin{frame}{Where does our problem sit?}
+\centering
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{>{\centering\arraybackslash}p{3cm}>{\centering\arraybackslash}p{3cm}>{\centering\arraybackslash}p{3cm}}
+\toprule
+&\textbf{Single Agent}&\textbf{Multi-Agent}\\
+\midrule
+\textbf{Known reward structure}&Linear / GLM Bandits&Cooperative Contextual Bandits\\
+\midrule
+\textbf{Unknown reward function}&SIB / ZoomSIB-UCB&\alert{\textbf{Our problem}}\\
+\bottomrule
+\end{tabular}
+\vspace{0.6em}
+\[
+\boxed{\text{Unknown link}+\text{Multi-agent cooperation}=\text{Federated SIB}}
+\]
+\vspace{0.2em}
+\small
+Our focus is the interaction between statistical learning and communication constraints.
+\end{frame}
+
+%====================================================================
 \begin{frame}{References}
-  \footnotesize
-  \begin{enumerate}
-    \item D.~Dey, S.~Bhore, A.~Ghosh. \emph{Optimal Regret for Single Index Bandits.}
-          arXiv:2605.09454, 2026.
-    \item Y.~Kang, M.~Liu, B.~Yi, J.~Lyu, Z.~Zhang, D.~Zhou, Y.~Li.
-          \emph{Single Index Bandits: Generalized Linear Contextual Bandits with Unknown
-          Reward Functions.} ICLR, 2026.
-    \item A.~Dubey, A.~Pentland. \emph{Kernel Methods for Cooperative Multi-Agent
-          Contextual Bandits.} ICML, 2020.
-    \item S.~Amani, C.~Thrampoulidis. \emph{Decentralized Multi-Agent Linear Bandits with
-          Safety Constraints.} AAAI, 35(8):6627--6635, 2021.
-    \item S.~Arya, S.~Bhattacharjee, B.~K.~Sriperumbudur. \emph{Kernel Single-Index
-          Bandits: Estimation, Inference, and Learning.} arXiv:2603.18938, 2026.
-    \item S.~R.~Chowdhury, A.~Gopalan. \emph{On Kernelized Multi-armed Bandits.}
-          ICML, 2017.
-    \item A.~Ghosh, J.~Chung, D.~Yin, K.~Ramchandran. \emph{An Efficient Framework for
-          Clustered Federated Learning.} NeurIPS, 2020.
-    \item A.~Ghosh, S.~R.~Chowdhury, A.~Gopalan. \emph{Misspecified Linear Bandits.}
-          AAAI, 2017.
-  \end{enumerate}
+\footnotesize
+\begin{enumerate}
+\item D.~Dey, S.~Bhore, A.~Ghosh. \emph{Optimal Regret for Single Index Bandits.} arXiv:2605.09454, 2026.
+\item Y.~Kang, M.~Liu, B.~Yi, J.~Lyu, Z.~Zhang, D.~Zhou, Y.~Li. \emph{Single Index Bandits: Generalized Linear Contextual Bandits with Unknown Reward Functions.} ICLR, 2026.
+\item A.~Dubey, A.~Pentland. \emph{Kernel Methods for Cooperative Multi-Agent Contextual Bandits.} ICML, 2020.
+\item S.~Amani, C.~Thrampoulidis. \emph{Decentralized Multi-Agent Linear Bandits with Safety Constraints.} AAAI, 2021.
+\item S.~Arya, S.~Bhattacharjee, B.~K.~Sriperumbudur. \emph{Kernel Single-Index Bandits: Estimation, Inference, and Learning.} arXiv:2603.18938, 2026.
+\item A.~Ghosh, J.~Chung, D.~Yin, K.~Ramchandran. \emph{An Efficient Framework for Clustered Federated Learning.} NeurIPS, 2020.
+\item A.~Ghosh, S.~R.~Chowdhury, A.~Gopalan. \emph{Misspecified Linear Bandits.} AAAI, 2017.
+\end{enumerate}
 \end{frame}
 
-% External slide file (thank-you)
+%====================================================================
 \input{Thank_you_Slide}
-
+%====================================================================
 \end{document}
