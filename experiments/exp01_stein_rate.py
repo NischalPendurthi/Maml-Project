@@ -1,7 +1,7 @@
 """E0 -- Stein estimator convergence rate.
 
-The single most important diagnostic in the whole project: if
-||theta_hat_0 - theta_*||_1 does not decay like n^{-1/2}, nothing downstream
+The single most important diagnostic in the whole project:
+if ||theta_hat_0 - theta_*||_1 does not decay like n^{-1/2}, nothing downstream
 can work.  It is also the quantity that the federated extension will improve:
 with N agents the effective sample size becomes N*n, so this curve shifts left
 by a factor N.  Establishing the single-agent slope now is what makes that
