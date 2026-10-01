@@ -1,0 +1,236 @@
+"""Generic federated two-phase single-index bandit.
+
+Setting (viz/data/p8-fedzoomsib-conjecture.js, `p8.setting`): N agents share
+the SAME unknown direction theta_* and link f.  Each round every agent i sees
+its own K arms X_{i,t} ~ p, pulls one and observes
+y_{i,t} = f(<x_{i,t}, theta_*>) + eta_{i,t}.  Network regret is the sum of the
+agents' regrets.
+
+The engine keeps the two-phase skeleton of ZoomSIB-UCB (Dey, Bhore & Ghosh
+2026, Algorithm 1) and delegates the two federation decisions to pluggable
+strategies:
+
+  Phase 1   all agents explore uniformly and keep their samples locally.  At
+            geometrically spaced checkpoints (on the POOLED sample size) the
+            Phase-1 strategy (src/fed/phase1/) produces one network estimate
+            theta_hat; the ZoomSIB adaptive stopping rule runs on it.  Because
+            the rule sees the pooled size, per-agent exploration shrinks with N.
+
+  Freeze    theta_hat_0 is frozen for EVERY agent at once (so the sample
+            splitting of Remark 3.1 survives network-wide); each agent uploads
+            max |<x, theta_hat_0>| over its Phase-1 contexts, the server sets
+            the window W and broadcasts (theta_hat_0, W): one shared bin grid.
+
+  Phase 2   sleeping UCB over the bins available to each agent.  The Phase-2
+            strategy (src/fed/phase2/) owns the (n_j, S_j) tables, says which
+            table each agent acts on, and when to communicate.
+
+Which strategies make up "Fed-ZoomSIB" (or plain ZoomSIB at N=1, or any
+variant) is an experiment choice -- see experiments/configs/.
+
+Communication is counted in scalars and bits (32 per full-precision scalar),
+both directions, plus the number of communication rounds.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+
+from ..stein import tau_default
+from .phase1 import make_phase1
+from .phase1.base import FLOAT_BITS
+from .phase1.normavg import local_estimates
+from .phase2 import make_phase2
+
+
+class Agent:
+    """What one agent keeps locally during Phase 1 (never uploaded raw)."""
+
+    def __init__(self, i, rng):
+        self.i = i
+        self.rng = rng
+        self.S_buf, self.y_buf = [], []
+
+
+class FedTwoPhase:
+    name = "FedTwoPhase"
+
+    def __init__(self, N, d, K, T, env_info, rng,
+                 phase1="exact", phase1_kw=None,
+                 phase2="periodic", phase2_kw=None,
+                 delta=0.01,
+                 stop_tol=0.15,
+                 stop_patience=1,
+                 stop_growth=1.5,
+                 min_explore=None,
+                 max_explore_frac=0.5,
+                 w_pad=1.05,
+                 ucb_scale=1.0,
+                 use_truncation=True):
+        self.N, self.d, self.K, self.T = N, d, K, T
+        self.info = env_info
+        self.sigma = env_info["sigma"]
+        self.M = env_info["M"]
+        self.L_f = env_info["L_f"]
+        self.score = env_info["score"]
+        self.delta = delta
+        self.w_pad = w_pad
+        self.ucb_scale = ucb_scale
+        self.use_truncation = use_truncation
+
+        r_agents, r_p1 = rng.spawn(2)
+        self.agents = [Agent(i, r) for i, r in enumerate(r_agents.spawn(N))]
+        self.p1 = make_phase1(phase1, r_p1, **(phase1_kw or {}))
+        self.p2 = make_phase2(phase2, **(phase2_kw or {}))
+
+        self.Delta = T ** (-1.0 / 3.0)
+        self.T0_cap = int(np.ceil(max_explore_frac * T))            # per agent
+        self.stop_tol = stop_tol
+        self.stop_patience = stop_patience
+        self.stop_growth = stop_growth
+        # Checked on the POOLED sample size, starting where a lone agent would.
+        self.min_explore = min_explore if min_explore is not None else max(50, 5 * d)
+        self._next_check = self.min_explore
+        self._prev_theta = None
+        self._stable = 0
+
+        self.t = 0
+        self.phase = 1
+        self.theta_hat = None
+        self.theta_local = None
+        self.W = self.N_bins = self.ucb_const = None
+        self.contrib = None                     # diagnostic: who fed each bin
+        self.T0_used = None
+
+        self.comm_scalars = self.comm_bits = self.comm_rounds = 0
+        self.comm_phase1 = 0
+        self.last_event = None
+
+    # ------------------------------------------------------------------
+    # Phase 1
+    # ------------------------------------------------------------------
+    def _tau(self, n):
+        if not self.use_truncation:
+            return None
+        return tau_default(self.sigma, self.L_f, self.M, n, self.d, self.delta)
+
+    def federated_theta(self, log=False):
+        theta, scalars, bits = self.p1.aggregate(self.agents, self._tau)
+        if log:
+            # + one stop/continue flag back to every agent
+            self._log(scalars + self.N, bits + self.N * FLOAT_BITS, phase1=True)
+        return theta
+
+    def local_thetas(self):
+        """Each agent's estimate from its own data alone (diagnostic)."""
+        return local_estimates(self.agents, self._tau)
+
+    def _checkpoint(self):
+        theta = self.federated_theta(log=True)
+        n_loc = len(self.agents[0].y_buf)
+        self._next_check = int(np.ceil(self.N * n_loc * self.stop_growth))
+        if self._prev_theta is not None:
+            drift = float(np.abs(theta - self._prev_theta).sum())
+            self._stable = self._stable + 1 if drift < self.stop_tol else 0
+        self._prev_theta = theta
+        self.theta_hat = theta
+        return self._stable >= self.stop_patience
+
+    def _finalise(self, theta=None):
+        self.theta_hat = theta if theta is not None else self.federated_theta(log=True)
+        self.theta_local = self.local_thetas()
+        self.T0_used = len(self.agents[0].y_buf)
+
+        ctx2 = self.info["ctx_std"] ** 2
+        z_max = max(float(np.max(np.abs((np.asarray(ag.S_buf) * ctx2) @ self.theta_hat)))
+                    for ag in self.agents)
+        self.W = max(z_max * self.w_pad, 10.0 * self.Delta)
+        k = self.N * 1 + self.N * (self.d + 1)       # up: z_max; down: theta_hat_0, W
+        self._log(k, k * FLOAT_BITS, phase1=True)
+
+        self.N_bins = int(np.ceil(2.0 * self.W / self.Delta))
+        self.p2.setup(self.N, self.N_bins + 2)
+        self.contrib = np.zeros((self.N, self.N_bins + 2), dtype=np.int64)
+        for ag in self.agents:
+            ag.S_buf, ag.y_buf = [], []
+        # The confidence radius covers every pull in the network.
+        self.ucb_const = self.ucb_scale * self.sigma * np.sqrt(
+            2.0 * np.log(2.0 * self.N_bins * self.N * self.T / self.delta))
+        self.phase = 2
+
+    # ------------------------------------------------------------------
+    # Phase 2
+    # ------------------------------------------------------------------
+    def _bins(self, X):
+        z = X @ self.theta_hat
+        b = np.ceil((z + self.W) / self.Delta).astype(np.int64)
+        b = np.clip(b, 1, self.N_bins)
+        b[np.abs(z) > self.W] = -1
+        return b
+
+    # ------------------------------------------------------------------
+    # Interface: select/update once per agent per round, then end_round()
+    # ------------------------------------------------------------------
+    def select(self, i, X):
+        ag = self.agents[i]
+        if self.phase == 1:
+            return int(ag.rng.integers(self.K))
+        b = self._bins(X)
+        avail = b >= 0
+        if not np.any(avail):
+            return int(ag.rng.integers(self.K))
+        idx = np.flatnonzero(avail)
+        bj = b[idx]
+        n_tab, S_tab = self.p2.view(i)
+        n, S = n_tab[bj], S_tab[bj]
+        nn = np.maximum(n, 1)
+        ucb = np.where(n == 0, np.inf, S / nn + self.ucb_const / np.sqrt(nn))
+        return int(idx[int(np.argmax(ucb))])
+
+    def update(self, i, X, a, y):
+        if self.phase == 1:
+            ag = self.agents[i]
+            ag.S_buf.append(self.score(X[a]))
+            ag.y_buf.append(y)
+            return
+        b = self._bins(X)[a]
+        if b >= 0:
+            self.p2.record(i, b, y)
+            self.contrib[i, b] += 1
+
+    def end_round(self):
+        self.t += 1
+        self.last_event = None
+        if self.phase == 1:
+            n_loc = len(self.agents[0].y_buf)
+            if n_loc >= self.T0_cap:
+                self._finalise()
+                self.last_event = "freeze"
+            elif self.N * n_loc >= self._next_check:
+                self.last_event = "stein"
+                if self._checkpoint():
+                    self._finalise(self.theta_hat)
+                    self.last_event = "freeze"
+            return
+        scalars, event = self.p2.end_round(self.t)
+        if event:
+            self._log(scalars, scalars * FLOAT_BITS)
+            self.last_event = event
+
+    # ------------------------------------------------------------------
+    def _log(self, scalars, bits, phase1=False):
+        self.comm_scalars += int(scalars)
+        self.comm_bits += int(bits)
+        self.comm_rounds += 1
+        if phase1:
+            self.comm_phase1 += int(scalars)
+
+    def diagnostics(self):
+        return dict(
+            T0_used=self.T0_used,
+            network_T0=None if self.T0_used is None else self.N * self.T0_used,
+            N_bins=self.N_bins, W=self.W, Delta=self.Delta,
+            theta_hat=self.theta_hat, theta_local=self.theta_local,
+            comm_scalars=self.comm_scalars, comm_bits=self.comm_bits,
+            comm_phase1=self.comm_phase1, comm_rounds=self.comm_rounds,
+        )

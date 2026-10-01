@@ -45,7 +45,8 @@ the planned improvements.
 |---|---|---|
 | 0 | Project pitch (5 min) | deck builds; **needs names + roll numbers** |
 | **1** | **Single-agent baseline and reproduction** | **complete** — [results](docs/03-phase1-results.md) |
-| 2–5 | Federated Phase 1, cooperative Phase 2, communication ablations, one extension | not started |
+| **2–4** | **Federated Phase 1, cooperative Phase 2, communication ablations** | **implemented** — [below](#federated-fed-zoomsib) |
+| 5 | One extension (safety / heterogeneous θ* / Byzantine agents) | not started |
 
 Everything implemented so far is **reproduction**, not contribution: it is the measuring
 stick against which "collaboration buys you X" will later be evaluated.
@@ -89,6 +90,16 @@ python experiments/exp04_dim_scaling.py       # regret vs dimension           ~1
 python experiments/exp05_explore_tradeoff.py  # Phase-1 exploration sweep     ~45 min
 ```
 
+Federated experiments (see [Federated: Fed-ZoomSIB](#federated-fed-zoomsib)):
+
+```bash
+python tests/test_fedzoomsib.py               # exact-pooling identity + bookkeeping  ~15 s
+python experiments/exp06_fed_scaling.py       # network regret vs N agents            ~5 min
+python experiments/exp07_phase1_strategies.py # how to pool theta                     ~3 min
+python experiments/exp08_phase2_strategies.py # regret vs communication               ~5 min
+python experiments/exp09_fed_live.py          # live dashboard -> GIF                 ~3 min
+```
+
 Figures are written to `results/` as both `.pdf` (for the deck) and `.png`.
 exp02 and exp04 parallelise over trials with `ProcessPoolExecutor` (BLAS is pinned to one
 thread per worker to avoid oversubscription); pass `workers=1` to `run_sweep` to debug
@@ -113,6 +124,84 @@ Build the pitch deck:
 ```bash
 cd slides/pitch && pdflatex main.tex
 ```
+
+---
+
+## Federated: Fed-ZoomSIB
+
+N agents share the unknown `θ*` and `f`; each sees its own contexts. The engine
+([src/fed/engine.py](src/fed/engine.py)) keeps ZoomSIB-UCB's two phases and delegates
+the two federation decisions to pluggable strategies, **one file each**:
+
+| Step | Strategies ([src/fed/phase1/](src/fed/phase1/), [src/fed/phase2/](src/fed/phase2/)) |
+|---|---|
+| **Phase 1** — pool `θ̂` | `exact` (upload Stein sums, τ at pooled size → *identical* to centralised) · `normavg` (FedAvg of finished local estimates) · `median` (coordinate-wise, Byzantine-robust) · `quantized` (stochastic rounding, `bits` per coordinate) |
+| **Phase 2** — share `(n_j, S_j)` | `periodic` (server sync every C rounds) · `none` · `event` (sync when an agent's unsynced pulls in a bin exceed γ × the global count) · `neighbor` (serverless, ring or complete graph) |
+
+Between the phases, `θ̂₀` is frozen for **every** agent at once (keeps Remark 3.1's
+sample splitting network-wide) and one shared bin grid is broadcast.
+
+**Algorithms are configs, not code.** `experiments/configs/` defines each named method
+as a dict of building blocks:
+
+```python
+"fed_zoomsib": dict(engine="fed", phase1="exact", phase2="periodic", phase2_kw=dict(every=1))
+"p2_event_1":  dict(engine="fed", phase1="exact", phase2="event",    phase2_kw=dict(gamma=1.0))
+"independent": dict(engine="independent")          # N × single-agent ZoomSIB-UCB
+```
+
+To try a new idea: add a strategy file to `src/fed/phase1/` or `phase2/`, register it in
+that folder's `__init__.py`, and add a config dict.
+
+### Headline federated numbers
+
+`d = 10`, `K = 20`, `T = 10 000` per agent, 8 trials.
+
+- **Exact pooling is exact**: `‖θ̂_fed − θ̂_pooled‖∞ = 2.2e-16` (test), and the `exact`
+  error curve coincides with the centralised one at every `n` (E7).
+- **Per-agent Phase 1 shrinks ~1/N**: on quadratic, `T₀` goes 349 → 147 → 86 → 52 → 32 for
+  N = 1 → 16, while independent agents stay at ~280 each (E6, fig07).
+- **Network regret scales like √N**: fitted exponent of `R_T(N)` in N on quadratic is
+  **1.04** for independent agents, **0.77** with Phase-1 sharing only, and **0.48** for
+  full Fed-ZoomSIB (zigzag 1.00 / 0.76 / 0.56; logistic 0.96 / 0.61 / 0.37). At N = 8 on
+  quadratic: 17 270 → 9 712 → 5 155.
+- **One Phase-1 message is already worth a lot**: `fed_p1_only` uses ~600 scalars *in total*
+  and removes ~44 % of network regret at N = 8 (quadratic).
+- **Event-triggered sync dominates periodic sync** (E8, N = 8): γ = 0.5 reaches
+  5 187 regret (every-round sync: 5 155) with **30k scalars instead of 1.57M — 53× less**.
+  Periodic sync at a similar budget (C = 1000, 19k scalars) gives 8 996.
+- **Phase-1 strategy matters less than the stopping rule**: `median` gets *lower* regret than
+  `exact` even though its estimates are noisier at a given `n`. Because it is noisier, the
+  drift-based stopping rule explores longer (T₀ 87 vs 52), and the extra exploration
+  pays off. 2-bit quantisation is accurate enough (error 0.19) but makes the estimate
+  jitter, so the rule never fires and regret explodes. The rule's `stop_tol` was tuned for a
+  single agent, and how it should scale with N is open.
+- Caveat: with N = 1 the engine reduces to ZoomSIB-UCB but uses a different RNG stream, so its
+  N = 1 numbers differ from `independent` by trial noise (2186 vs 1859 on quadratic, 8 trials).
+
+### Watching it run
+
+```bash
+python experiments/exp09_fed_live.py                          # results/fed_live_p2_periodic_25_quadratic.gif
+python experiments/exp09_fed_live.py --config p2_event_1 --link zigzag
+python experiments/exp09_fed_live.py --live                   # also plays in a window
+```
+
+![Fed-ZoomSIB live](results/fed_live_p2_periodic_25_quadratic.gif)
+
+Panels: the network (arrows light up with what each message carries; badges count an
+agent's unsynced pulls) · every agent's own `θ̂` vs the federated one vs `θ*` · Phase-1
+error, local vs federated · the shared bin table on the index line, with stacked bars of
+whose pulls fed each bin (hatched = not yet synced) · network regret vs N independent agents
+on the same contexts.
+
+| Figure | Script | Shows |
+|---|---|---|
+| `fig06_fed_scaling` | exp06 | network regret vs N, four links |
+| `fig07_fed_phase1_length` | exp06 | per-agent and network Phase-1 length vs N |
+| `fig08_phase1_strategies` | exp07 | θ error vs n per strategy, upload bits, bandit regret |
+| `fig09_phase2_strategies` | exp08 | regret vs communication for every Phase-2 strategy |
+| `fed_live_*.gif` | exp09 | the live dashboard |
 
 ---
 
@@ -156,7 +245,14 @@ page load and reports dangling ids, cycles, misfiled edges and the proof-status 
 ## Repository layout
 
 ```
-src/
+src/                       reusable machinery only -- no named "methods" live here
+  fed/           federated building blocks
+    engine.py      FedTwoPhase: generic N-agent two-phase learner (freeze, shared grid, UCB)
+    independent.py N non-communicating single-agent ZoomSIB-UCB learners
+    phase1/        how theta is pooled         one file per strategy: exact, normavg, median, quantized
+    phase2/        how bin stats are shared    one file per strategy: periodic, none, event, neighbor
+    runner.py      N-agent envs (shared theta*), episode loop, parallel config sweeps
+    viz.py         live dashboard (Recorder + Dashboard) used by exp09
   envs.py        SIBEnv, link functions, score function S(x) = -grad log p(x)
   stein.py       truncated + l1-normalised Stein estimator
   zoomsib.py     ZoomSIB-UCB (Dey et al. Algorithm 1) + oracle-theta ablation
@@ -166,6 +262,9 @@ src/
   plotting.py    shared figure styling
 
 experiments/     one script per figure; seeds fixed
+  configs/       named algorithms = choices of building blocks (plain dicts):
+                 zoomsib.py, fed_zoomsib.py, phase1_variants.py, phase2_variants.py
+tests/           test_fedzoomsib.py
 results/         generated figures (.npz caches are gitignored)
 docs/            literature review, roadmap, Phase-1 results
 slides/pitch/    5-minute pitch deck (LaTeX, course template)
