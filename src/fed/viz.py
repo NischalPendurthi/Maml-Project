@@ -97,7 +97,7 @@ class Recorder:
         self._events = Counter()
         if algo.phase == 1:
             snap.update(theta_fed=algo.federated_theta(), theta_loc=algo.local_thetas(),
-                        samples=[(np.asarray(ag.S_buf) * algo.info["ctx_std"] ** 2,
+                        samples=[(np.asarray(ag.X_buf).reshape(-1, algo.d),
                                   np.asarray(ag.y_buf)) for ag in algo.agents])
         else:
             snap.update(theta_fed=algo.theta_hat.copy(), theta_loc=algo.theta_local.copy(),

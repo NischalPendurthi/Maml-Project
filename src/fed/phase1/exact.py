@@ -16,8 +16,9 @@ class ExactStein(Phase1Strategy):
     name = "exact"
 
     def aggregate(self, agents, tau_fn):
-        n_pool = len(agents) * len(agents[0].y_buf)
+        live = [ag for ag in agents if ag.n]
+        n_pool = sum(ag.n for ag in live)
         tau = tau_fn(n_pool)
-        total = sum(truncated(local_V(ag), tau).sum(axis=0) for ag in agents)
-        k = len(agents) * (total.shape[0] + 1)
+        total = sum(truncated(local_V(ag), tau).sum(axis=0) for ag in live)
+        k = len(live) * (total.shape[0] + 1)
         return normalize_l1(total / n_pool), k, k * FLOAT_BITS

@@ -14,10 +14,11 @@ from ..zoomsib import ZoomSIBUCB
 class IndependentAgents:
     name = "Independent"
 
-    def __init__(self, N, d, K, T, env_info, rng, **kw):
+    def __init__(self, N, d, K, T, env_info, rng, agent_infos=None, **kw):
         self.N = N
         self.t = 0
-        self.agents = [ZoomSIBUCB(d, K, T, env_info, r, **kw) for r in rng.spawn(N)]
+        infos = agent_infos if agent_infos is not None else [env_info] * N
+        self.agents = [ZoomSIBUCB(d, K, T, inf, r, **kw) for r, inf in zip(rng.spawn(N), infos)]
         self.comm_scalars = self.comm_bits = self.comm_rounds = 0
         self.last_event = None
 

@@ -44,12 +44,21 @@ from .phase2 import make_phase2
 
 
 class Agent:
-    """What one agent keeps locally during Phase 1 (never uploaded raw)."""
+    """What one agent keeps locally during Phase 1 (never uploaded raw).
 
-    def __init__(self, i, rng):
+    `info` is what THIS agent may know -- in particular its own score function,
+    which differs across agents under covariate shift.
+    """
+
+    def __init__(self, i, rng, info=None):
         self.i = i
         self.rng = rng
-        self.S_buf, self.y_buf = [], []
+        self.info = info
+        self.S_buf, self.y_buf, self.X_buf = [], [], []
+
+    @property
+    def n(self):
+        return len(self.y_buf)
 
 
 class FedTwoPhase:
@@ -66,7 +75,9 @@ class FedTwoPhase:
                  max_explore_frac=0.5,
                  w_pad=1.05,
                  ucb_scale=1.0,
-                 use_truncation=True):
+                 use_truncation=True,
+                 bin_width="agent",
+                 agent_infos=None):
         self.N, self.d, self.K, self.T = N, d, K, T
         self.info = env_info
         self.sigma = env_info["sigma"]
@@ -79,12 +90,18 @@ class FedTwoPhase:
         self.use_truncation = use_truncation
 
         r_agents, r_p1 = rng.spawn(2)
-        self.agents = [Agent(i, r) for i, r in enumerate(r_agents.spawn(N))]
+        infos = agent_infos if agent_infos is not None else [env_info] * N
+        self.agents = [Agent(i, r, inf) for i, (r, inf) in enumerate(zip(r_agents.spawn(N), infos))]
         self.p1 = make_phase1(phase1, r_p1, **(phase1_kw or {}))
         self.p2 = make_phase2(phase2, **(phase2_kw or {}))
 
-        self.Delta = T ** (-1.0 / 3.0)
-        self.T0_cap = int(np.ceil(max_explore_frac * T))            # per agent
+        # Bin width: ZoomSIB's single-agent choice Δ = T^{-1/3}, or the network
+        # choice Δ = (NT)^{-1/3} that balances the discretisation bias N·T·Δ
+        # against the pooled UCB term √(NT/Δ) -- see exp13.
+        if bin_width not in ("agent", "network"):
+            raise ValueError(f"bin_width must be 'agent' or 'network', not {bin_width!r}")
+        self.Delta = (T * (N if bin_width == "network" else 1)) ** (-1.0 / 3.0)
+        self.T0_cap = int(np.ceil(max_explore_frac * T))            # rounds
         self.stop_tol = stop_tol
         self.stop_patience = stop_patience
         self.stop_growth = stop_growth
@@ -100,6 +117,7 @@ class FedTwoPhase:
         self.theta_local = None
         self.W = self.N_bins = self.ucb_const = None
         self.contrib = None                     # diagnostic: who fed each bin
+        self._last = None
         self.T0_used = None
 
         self.comm_scalars = self.comm_bits = self.comm_rounds = 0
@@ -114,11 +132,15 @@ class FedTwoPhase:
             return None
         return tau_default(self.sigma, self.L_f, self.M, n, self.d, self.delta)
 
+    def n_pool(self):
+        return sum(ag.n for ag in self.agents)
+
     def federated_theta(self, log=False):
         theta, scalars, bits = self.p1.aggregate(self.agents, self._tau)
         if log:
             # + one stop/continue flag back to every agent
-            self._log(scalars + self.N, bits + self.N * FLOAT_BITS, phase1=True)
+            self._log(scalars + self.N, bits + self.N * FLOAT_BITS, phase1=True,
+                      rounds=getattr(self.p1, "last_rounds", 1))
         return theta
 
     def local_thetas(self):
@@ -127,8 +149,7 @@ class FedTwoPhase:
 
     def _checkpoint(self):
         theta = self.federated_theta(log=True)
-        n_loc = len(self.agents[0].y_buf)
-        self._next_check = int(np.ceil(self.N * n_loc * self.stop_growth))
+        self._next_check = int(np.ceil(self.n_pool() * self.stop_growth))
         if self._prev_theta is not None:
             drift = float(np.abs(theta - self._prev_theta).sum())
             self._stable = self._stable + 1 if drift < self.stop_tol else 0
@@ -139,11 +160,11 @@ class FedTwoPhase:
     def _finalise(self, theta=None):
         self.theta_hat = theta if theta is not None else self.federated_theta(log=True)
         self.theta_local = self.local_thetas()
-        self.T0_used = len(self.agents[0].y_buf)
+        self.T0_used = self.t                       # rounds (= samples per agent if all active)
+        self.T0_samples = [ag.n for ag in self.agents]
 
-        ctx2 = self.info["ctx_std"] ** 2
-        z_max = max(float(np.max(np.abs((np.asarray(ag.S_buf) * ctx2) @ self.theta_hat)))
-                    for ag in self.agents)
+        z_max = max(float(np.max(np.abs(np.asarray(ag.X_buf) @ self.theta_hat)))
+                    for ag in self.agents if ag.n)
         self.W = max(z_max * self.w_pad, 10.0 * self.Delta)
         k = self.N * 1 + self.N * (self.d + 1)       # up: z_max; down: theta_hat_0, W
         self._log(k, k * FLOAT_BITS, phase1=True)
@@ -152,7 +173,7 @@ class FedTwoPhase:
         self.p2.setup(self.N, self.N_bins + 2)
         self.contrib = np.zeros((self.N, self.N_bins + 2), dtype=np.int64)
         for ag in self.agents:
-            ag.S_buf, ag.y_buf = [], []
+            ag.S_buf, ag.y_buf, ag.X_buf = [], [], []
         # The confidence radius covers every pull in the network.
         self.ucb_const = self.ucb_scale * self.sigma * np.sqrt(
             2.0 * np.log(2.0 * self.N_bins * self.N * self.T / self.delta))
@@ -176,13 +197,13 @@ class FedTwoPhase:
         if self.phase == 1:
             return int(ag.rng.integers(self.K))
         b = self._bins(X)
+        self._last = (i, X, b)                      # update() reuses the projection
         avail = b >= 0
         if not np.any(avail):
             return int(ag.rng.integers(self.K))
         idx = np.flatnonzero(avail)
         bj = b[idx]
-        n_tab, S_tab = self.p2.view(i)
-        n, S = n_tab[bj], S_tab[bj]
+        n, S = self.p2.view_at(i, bj)
         nn = np.maximum(n, 1)
         ucb = np.where(n == 0, np.inf, S / nn + self.ucb_const / np.sqrt(nn))
         return int(idx[int(np.argmax(ucb))])
@@ -190,10 +211,12 @@ class FedTwoPhase:
     def update(self, i, X, a, y):
         if self.phase == 1:
             ag = self.agents[i]
-            ag.S_buf.append(self.score(X[a]))
+            ag.S_buf.append(ag.info["score"](X[a]))
             ag.y_buf.append(y)
+            ag.X_buf.append(X[a])
             return
-        b = self._bins(X)[a]
+        li, lX, lb = self._last if self._last is not None else (None, None, None)
+        b = (lb if li == i and lX is X else self._bins(X))[a]
         if b >= 0:
             self.p2.record(i, b, y)
             self.contrib[i, b] += 1
@@ -202,11 +225,10 @@ class FedTwoPhase:
         self.t += 1
         self.last_event = None
         if self.phase == 1:
-            n_loc = len(self.agents[0].y_buf)
-            if n_loc >= self.T0_cap:
+            if self.t >= self.T0_cap and self.n_pool():
                 self._finalise()
                 self.last_event = "freeze"
-            elif self.N * n_loc >= self._next_check:
+            elif self.n_pool() >= self._next_check:
                 self.last_event = "stein"
                 if self._checkpoint():
                     self._finalise(self.theta_hat)
@@ -214,14 +236,14 @@ class FedTwoPhase:
             return
         scalars, event = self.p2.end_round(self.t)
         if event:
-            self._log(scalars, scalars * FLOAT_BITS)
+            self._log(scalars, scalars * FLOAT_BITS, rounds=getattr(self.p2, "last_rounds", 1))
             self.last_event = event
 
     # ------------------------------------------------------------------
-    def _log(self, scalars, bits, phase1=False):
+    def _log(self, scalars, bits, phase1=False, rounds=1):
         self.comm_scalars += int(scalars)
         self.comm_bits += int(bits)
-        self.comm_rounds += 1
+        self.comm_rounds += int(rounds)
         if phase1:
             self.comm_phase1 += int(scalars)
 
@@ -229,6 +251,7 @@ class FedTwoPhase:
         return dict(
             T0_used=self.T0_used,
             network_T0=None if self.T0_used is None else self.N * self.T0_used,
+            T0_samples=getattr(self, "T0_samples", None),
             N_bins=self.N_bins, W=self.W, Delta=self.Delta,
             theta_hat=self.theta_hat, theta_local=self.theta_local,
             comm_scalars=self.comm_scalars, comm_bits=self.comm_bits,

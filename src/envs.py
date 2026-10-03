@@ -111,6 +111,12 @@ class SIBEnv:
         return X / self.ctx_std ** 2
 
     # -- environment dynamics ----------------------------------------------
+    ctx_mean = 0.0                                      # overridden by shifted envs
+
+    def is_active(self):
+        """Does this agent act this round?  Always, except in participation scenarios."""
+        return True
+
     def draw_arms(self):
         return self.rng.standard_normal((self.K, self.d)) * self.ctx_std
 

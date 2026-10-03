@@ -34,6 +34,11 @@ class Phase2Strategy:
         """(n_j, S_j) arrays agent i acts on."""
         raise NotImplementedError
 
+    def view_at(self, i, idx):
+        """`view(i)` restricted to bins `idx` -- the per-round hot path."""
+        n, S = self.view(i)
+        return n[idx], S[idx]
+
     def end_round(self, t):
         """Communicate if it is time.  -> (scalars sent, event label or None)."""
         return 0, None
@@ -65,6 +70,9 @@ class ServerSync(Phase2Strategy):
 
     def view(self, i):
         return self.G_n + self.dn[i], self.G_S + self.dS[i]
+
+    def view_at(self, i, idx):
+        return self.G_n[idx] + self.dn[i, idx], self.G_S[idx] + self.dS[i, idx]
 
     def sync(self):
         """Everyone uploads unsynced bins; server merges and broadcasts touched bins."""

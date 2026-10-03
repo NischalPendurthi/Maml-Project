@@ -6,12 +6,16 @@ variant is a new dict, never new src code.
     fed_zoomsib.py     Fed-ZoomSIB, the proposed method
     phase1_variants.py how theta is pooled          (Phase 2 held fixed)
     phase2_variants.py how bin statistics are shared (Phase 1 held fixed)
+    fl_variants.py     every federated-learning METHOD (FedAvg, SCAFFOLD, ...) as a
+                       Phase-1 or Phase-2 variant, with tuning grids (exp10–exp12)
 
 Every config may carry `label` and `style` (matplotlib kwargs) for plotting;
 the runner strips them before building the algorithm.
 """
 
 from .fed_zoomsib import FED_ZOOMSIB
+from .fl_variants import (FAMILY, FAMILY_COLOR, FL_VARIANTS, GRIDS, LABEL,  # noqa: F401
+                          fl_phase1_config, fl_phase2_config, method_kwargs)
 from .phase1_variants import PHASE1_VARIANTS
 from .phase2_variants import PHASE2_VARIANTS, sync_period_sweep
 from .zoomsib import ZOOMSIB

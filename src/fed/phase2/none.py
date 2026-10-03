@@ -16,6 +16,9 @@ class NoShare(Phase2Strategy):
     def view(self, i):
         return self.own_n[i], self.own_S[i]
 
+    def view_at(self, i, idx):
+        return self.own_n[i, idx], self.own_S[i, idx]
+
     def shared_table(self):
         return np.zeros_like(self.own_n[0]), np.zeros_like(self.own_S[0])
 

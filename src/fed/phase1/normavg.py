@@ -15,8 +15,14 @@ from .base import FLOAT_BITS, Phase1Strategy, local_V, truncated
 
 
 def local_estimates(agents, tau_fn):
-    tau = tau_fn(len(agents[0].y_buf))
-    return np.array([normalize_l1(truncated(local_V(ag), tau).mean(axis=0)) for ag in agents])
+    """(N, d) each agent's own estimate (tau at its own n); NaN rows for agents
+    that have no samples yet."""
+    d = next((len(ag.S_buf[0]) for ag in agents if ag.n), 0)
+    out = np.full((len(agents), d), np.nan)
+    for i, ag in enumerate(agents):
+        if ag.n:
+            out[i] = normalize_l1(truncated(local_V(ag), tau_fn(ag.n)).mean(axis=0))
+    return out
 
 
 class NormalizedAverage(Phase1Strategy):
@@ -24,4 +30,5 @@ class NormalizedAverage(Phase1Strategy):
 
     def aggregate(self, agents, tau_fn):
         loc = local_estimates(agents, tau_fn)
-        return normalize_l1(loc.mean(axis=0)), loc.size, loc.size * FLOAT_BITS
+        k = int(np.isfinite(loc).sum())
+        return normalize_l1(np.nanmean(loc, axis=0)), k, k * FLOAT_BITS

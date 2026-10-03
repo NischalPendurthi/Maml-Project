@@ -35,14 +35,17 @@ class QuantizedStein(Phase1Strategy):
         return -bound + q / levels * (2 * bound)
 
     def aggregate(self, agents, tau_fn):
-        n_pool = len(agents) * len(agents[0].y_buf)
+        live = [ag for ag in agents if ag.n]
+        n_pool = sum(ag.n for ag in live)
         tau = tau_fn(n_pool)
-        means = []
-        for ag in agents:
+        means, wts = [], []
+        for ag in live:
             m = truncated(local_V(ag), tau).mean(axis=0)
             scale = float(np.abs(m).max()) or 1.0
             means.append(self._quantize(m, scale))
+            wts.append(ag.n)
         d = means[0].shape[0]
         # quantised coordinates + scale + count at full precision
-        bits = len(agents) * (d * self.bits + 2 * FLOAT_BITS)
-        return normalize_l1(np.mean(means, axis=0)), len(agents) * (d + 2), bits
+        bits = len(live) * (d * self.bits + 2 * FLOAT_BITS)
+        est = np.average(np.array(means), axis=0, weights=np.array(wts, float))
+        return normalize_l1(est), len(live) * (d + 2), bits

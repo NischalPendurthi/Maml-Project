@@ -1,0 +1,94 @@
+{
+ "stein": {
+  "suffstat": {},
+  "split": {},
+  "oneshot": {},
+  "distill": {},
+  "fedsgd": {
+   "lr_scale": 1.0
+  },
+  "fedavg": {
+   "local_steps": 1,
+   "lr_scale": 1.0
+  },
+  "fedavg_prop": {
+   "local_steps": 20,
+   "lr_scale": 1.0
+  },
+  "fedprox": {
+   "local_steps": 5,
+   "mu_rel": 0.01
+  },
+  "fednova": {
+   "local_steps": 20,
+   "lr_scale": 0.3
+  },
+  "fedavgm": {
+   "local_steps": 5,
+   "server_lr": 0.3,
+   "beta": 0.5
+  },
+  "fedadam": {
+   "local_steps": 1,
+   "server_lr": 0.03
+  },
+  "fedyogi": {
+   "local_steps": 1,
+   "server_lr": 0.03
+  },
+  "scaffold": {
+   "local_steps": 5,
+   "lr_scale": 1.0
+  },
+  "feddyn": {
+   "local_steps": 5,
+   "alpha_rel": 1.0
+  }
+ },
+ "ls": {
+  "suffstat": {},
+  "split": {},
+  "oneshot": {},
+  "distill": {},
+  "fedsgd": {
+   "lr_scale": 1.0
+  },
+  "fedavg": {
+   "local_steps": 1,
+   "lr_scale": 1.0
+  },
+  "fedavg_prop": {
+   "local_steps": 1,
+   "lr_scale": 1.0
+  },
+  "fedprox": {
+   "local_steps": 5,
+   "mu_rel": 1.0
+  },
+  "fednova": {
+   "local_steps": 5,
+   "lr_scale": 0.3
+  },
+  "fedavgm": {
+   "local_steps": 1,
+   "server_lr": 1.0,
+   "beta": 0.5
+  },
+  "fedadam": {
+   "local_steps": 5,
+   "server_lr": 0.03
+  },
+  "fedyogi": {
+   "local_steps": 5,
+   "server_lr": 0.03
+  },
+  "scaffold": {
+   "local_steps": 5,
+   "lr_scale": 0.3
+  },
+  "feddyn": {
+   "local_steps": 5,
+   "alpha_rel": 1.0
+  }
+ }
+}

@@ -52,3 +52,7 @@ desktop.ini
 .vscode/
 .idea/
 scratch/
+
+# resumable benchmark checkpoints
+results/*.cells
+results/*.tmp

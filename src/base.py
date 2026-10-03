@@ -46,6 +46,7 @@ def env_info_from(env):
         L_f=env.L_f,
         L_fp=env.L_fp,
         ctx_std=env.ctx_std,
+        ctx_mean=getattr(env, "ctx_mean", 0.0),
     )
 
 

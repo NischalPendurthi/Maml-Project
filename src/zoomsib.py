@@ -159,7 +159,8 @@ class ZoomSIBUCB(BanditAlgo):
 
         if self.w_mode == "empirical":
             # Score vectors are x / s^2, so recover the contexts to project.
-            X1 = np.asarray(self._S_buf) * self.info["ctx_std"] ** 2
+            X1 = (np.asarray(self._S_buf) * self.info["ctx_std"] ** 2
+                  + self.info.get("ctx_mean", 0.0))
             z = X1 @ self.theta_hat
             self.W = float(np.max(np.abs(z))) * self.w_pad
             self.W = max(self.W, 10.0 * self.Delta)      # never degenerate

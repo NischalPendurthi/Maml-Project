@@ -18,4 +18,5 @@ class CoordinateMedian(Phase1Strategy):
 
     def aggregate(self, agents, tau_fn):
         loc = local_estimates(agents, tau_fn)
-        return normalize_l1(np.median(loc, axis=0)), loc.size, loc.size * FLOAT_BITS
+        k = int(np.isfinite(loc).sum())
+        return normalize_l1(np.nanmedian(loc, axis=0)), k, k * FLOAT_BITS

@@ -21,20 +21,26 @@ from ..base import env_info_from
 from ..envs import SIBEnv
 from .engine import FedTwoPhase
 from .independent import IndependentAgents
+from .scenarios import make_scenario_envs
 
 ENGINES = {"fed": FedTwoPhase, "independent": IndependentAgents}
 
 
-def make_fed_envs(N, d, K, link, sigma=0.1, seed=0, run_seed=0, index_scale=1.0):
+def make_fed_envs(N, d, K, link, sigma=0.1, seed=0, run_seed=0, index_scale=1.0,
+                  scenario="iid", strength=None):
     """N agents on one problem instance.
 
     Same `seed` -> same theta_* (and f); each agent gets its own context and
     noise stream.  An agent's stream does not depend on what it pulls, so every
     config sees exactly the same contexts -- comparisons are paired.
+    `scenario` (src/fed/scenarios.py) makes the agents heterogeneous.
     """
-    return [SIBEnv(d=d, K=K, link=link, sigma=sigma, seed=seed,
-                   run_seed=[run_seed, i], index_scale=index_scale)
-            for i in range(N)]
+    if scenario == "iid" and strength is None:
+        return [SIBEnv(d=d, K=K, link=link, sigma=sigma, seed=seed,
+                       run_seed=[run_seed, i], index_scale=index_scale)
+                for i in range(N)]
+    return make_scenario_envs(scenario, N, d, K, link, sigma, seed, run_seed,
+                              index_scale, strength)
 
 
 def build_fed(config, envs, T, rng):
@@ -43,11 +49,12 @@ def build_fed(config, envs, T, rng):
     kw.pop("label", None)
     kw.pop("style", None)
     env = envs[0]
-    return cls(len(envs), env.d, env.K, T, env_info_from(env), rng, **kw)
+    infos = [env_info_from(e) for e in envs]
+    return cls(len(envs), env.d, env.K, T, infos[0], rng, agent_infos=infos, **kw)
 
 
 def run_fed_episode(envs, algo, T, record_every=1, callback=None):
-    """All N agents act once per round, then the network gets one chance to talk.
+    """Every ACTIVE agent acts once per round, then the network gets one chance to talk.
 
     Returns (network cumulative regret (P,), per-agent cumulative regret (N, P),
     grid).  `callback(t, algo, inst)` runs after every round -- the live
@@ -57,6 +64,9 @@ def run_fed_episode(envs, algo, T, record_every=1, callback=None):
     inst = np.empty((T, N), dtype=float)
     for t in range(T):
         for i, env in enumerate(envs):
+            if not env.is_active():
+                inst[t, i] = 0.0
+                continue
             X = env.draw_arms()
             a = algo.select(i, X)
             y = env.pull(X, a)
@@ -71,9 +81,11 @@ def run_fed_episode(envs, algo, T, record_every=1, callback=None):
 
 
 def one_fed_trial(args):
-    (name, config, trial, N, d, K, T, link, sigma, index_scale, record_every) = args
+    (name, config, trial, N, d, K, T, link, sigma, index_scale, record_every,
+     scenario, strength) = args
     envs = make_fed_envs(N, d, K, link, sigma, seed=1000 + trial,
-                         run_seed=50_000 + trial, index_scale=index_scale)
+                         run_seed=50_000 + trial, index_scale=index_scale,
+                         scenario=scenario, strength=strength)
     rng = np.random.default_rng([90_000, trial, N])
     algo = build_fed(config, envs, T, rng)
     net, per, grid = run_fed_episode(envs, algo, T, record_every)
@@ -81,7 +93,8 @@ def one_fed_trial(args):
 
 
 def run_fed_sweep(configs, n_trials, N, d, K, T, link, sigma=0.1, index_scale=1.0,
-                  record_every=1, workers=None, progress=True):
+                  record_every=1, workers=None, progress=True, scenario="iid",
+                  strength=None):
     """Run every (config, trial) pair in parallel.
 
     `configs` maps a name -> config dict.  Returns
@@ -89,7 +102,8 @@ def run_fed_sweep(configs, n_trials, N, d, K, T, link, sigma=0.1, index_scale=1.
     """
     out = {name: dict(net=[None] * n_trials, per=[None] * n_trials, diag=[None] * n_trials)
            for name in configs}
-    jobs = [(name, cfg, i, N, d, K, T, link, sigma, index_scale, record_every)
+    jobs = [(name, cfg, i, N, d, K, T, link, sigma, index_scale, record_every,
+             scenario, strength)
             for name, cfg in configs.items() for i in range(n_trials)]
     workers = workers if workers is not None else min(os.cpu_count() or 1, 12)
     grid = None
@@ -114,3 +128,31 @@ def run_fed_sweep(configs, n_trials, N, d, K, T, link, sigma=0.1, index_scale=1.
         out[name]["net"] = np.vstack(out[name]["net"])
         out[name]["per"] = np.stack(out[name]["per"])
     return out, grid
+
+
+def resumable_cells(path, cells, run_cell, redo=None):
+    """Run `run_cell(cell, names) -> {name: result}` per cell, checkpointing to `path`.
+
+    Long benchmarks are a sequence of (scenario, link) cells; if the process is
+    interrupted, re-running picks up after the last finished cell.  `redo` (a
+    list of config names) recomputes just those configs in every cached cell --
+    for when one method's implementation changes.
+    """
+    import pickle
+
+    done = {}
+    if os.path.exists(path):
+        with open(path, "rb") as fh:
+            done = pickle.load(fh)
+    for cell in cells:
+        if cell in done and not redo:
+            print(f"    cell {cell} cached", flush=True)
+            continue
+        if cell in done:
+            done[cell].update(run_cell(cell, redo))
+        else:
+            done[cell] = run_cell(cell, None)
+        with open(path + ".tmp", "wb") as fh:
+            pickle.dump(done, fh)
+        os.replace(path + ".tmp", path)
+    return done
