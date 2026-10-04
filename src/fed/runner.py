@@ -35,6 +35,14 @@ def make_fed_envs(N, d, K, link, sigma=0.1, seed=0, run_seed=0, index_scale=1.0,
     config sees exactly the same contexts -- comparisons are paired.
     `scenario` (src/fed/scenarios.py) makes the agents heterogeneous.
     """
+    from ..multiindex.env import MIBEnv, parse_mib_link     # 'mib:<link>:<m>' links
+    mib = parse_mib_link(link)
+    if mib is not None:
+        if scenario != "iid":
+            raise ValueError("multi-index environments support scenario='iid' only")
+        return [MIBEnv(d=d, K=K, m=mib[1], link=mib[0], sigma=sigma, seed=seed,
+                       run_seed=[run_seed, i], index_scale=index_scale)
+                for i in range(N)]
     if scenario == "iid" and strength is None:
         return [SIBEnv(d=d, K=K, link=link, sigma=sigma, seed=seed,
                        run_seed=[run_seed, i], index_scale=index_scale)
@@ -49,6 +57,9 @@ def build_fed(config, envs, T, rng):
     if engine == "dec":                       # serverless engine, src/dec/
         from ..dec.engine import DecTwoPhase
         cls = DecTwoPhase
+    elif engine == "mib":                     # multi-index engine, src/multiindex/
+        from ..multiindex.engine import FedZoomMIB
+        cls = FedZoomMIB
     else:
         cls = ENGINES[engine]
     kw.pop("label", None)
