@@ -11,8 +11,13 @@ widths, and a wrong count is worse than a noisy sum.
     ef = True    what is not sent stays in the agent's delta and goes out at a
                  later sync (error feedback); False: it is discarded
 
-Only the upload is compressed; the server's broadcast of the bins it merged is
-full precision.  `last_bits` reports the real bit count to the engine.
+    down = True  (quant only) the server's broadcast of the merged sum-deltas is
+                 quantised too, with the server keeping its own rounding residual;
+                 False: the broadcast is full precision
+
+The broadcast reaches all N agents, so it is the larger half of the traffic;
+compressing only uploads caps the saving below 50%.  `last_bits` reports the
+real bit count to the engine.
 """
 
 from __future__ import annotations
@@ -27,12 +32,17 @@ from .event import EventTriggered
 class EventCompressed(EventTriggered):
     name = "event_compressed"
 
-    def __init__(self, gamma=0.5, compressor=None, ef=True, seed=0):
+    def __init__(self, gamma=0.5, compressor=None, ef=True, down=True, seed=0):
         super().__init__(gamma)
         self.spec = compressor or {"kind": "none"}
         self.ef = bool(ef)
+        self.down = bool(down)
         self.rng = np.random.default_rng(seed)
         self.last_bits = None
+
+    def setup(self, N, n_slots):
+        super().setup(N, n_slots)
+        self.srv_res = np.zeros(n_slots)
 
     def end_round(self, t):
         self.last_bits = None
@@ -66,11 +76,19 @@ class EventCompressed(EventTriggered):
                 send_n[i, idx] = self.dn[i, idx]
                 send_S[i, idx] = self.dS[i, idx]
                 bits += PER_BIN * idx.size * FLOAT_BITS
-        merged = (send_n > 0).any(axis=0)
-        down = PER_BIN * int(merged.sum()) * self.N
-        bits += down * FLOAT_BITS
+        merged = np.flatnonzero((send_n > 0).any(axis=0))
+        delta_S = send_S.sum(axis=0)
+        if kind == "quant" and self.down and merged.size:
+            v = delta_S[merged] + self.srv_res[merged]
+            q, b = quantize(v, self.spec["bits"], self.rng)
+            self.srv_res[merged] = v - q            # server-side error feedback
+            delta_S = np.zeros_like(delta_S)
+            delta_S[merged] = q
+            bits += self.N * (2 * merged.size * FLOAT_BITS + b)
+        else:
+            bits += self.N * PER_BIN * merged.size * FLOAT_BITS
         self.G_n += send_n.sum(axis=0)
-        self.G_S += send_S.sum(axis=0)
+        self.G_S += delta_S
         if self.ef:
             self.dn -= send_n
             self.dS -= send_S                 # unsent bins and rounding residuals stay local
