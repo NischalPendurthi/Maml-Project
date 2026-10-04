@@ -77,6 +77,8 @@ class FedTwoPhase:
                  ucb_scale=1.0,
                  use_truncation=True,
                  bin_width="agent",
+                 freeze="adaptive",
+                 T0=None,
                  agent_infos=None):
         self.N, self.d, self.K, self.T = N, d, K, T
         self.info = env_info
@@ -102,6 +104,13 @@ class FedTwoPhase:
             raise ValueError(f"bin_width must be 'agent' or 'network', not {bin_width!r}")
         self.Delta = (T * (N if bin_width == "network" else 1)) ** (-1.0 / 3.0)
         self.T0_cap = int(np.ceil(max_explore_frac * T))            # rounds
+        # freeze="fixed": explore exactly T0 rounds per agent, pool once, no stop
+        # rule and no checkpoints -- the schedule the regret proofs use.
+        if freeze not in ("adaptive", "fixed"):
+            raise ValueError(f"freeze must be 'adaptive' or 'fixed', not {freeze!r}")
+        if freeze == "fixed" and T0 is None:
+            raise ValueError("freeze='fixed' needs T0")
+        self.freeze_mode, self.T0_fixed = freeze, T0
         self.stop_tol = stop_tol
         self.stop_patience = stop_patience
         self.stop_growth = stop_growth
@@ -121,7 +130,8 @@ class FedTwoPhase:
         self.T0_used = None
 
         self.comm_scalars = self.comm_bits = self.comm_rounds = 0
-        self.comm_phase1 = 0
+        self.comm_phase1 = self.comm_phase1_bits = self.comm_rounds_phase1 = 0
+        self.comm_log = []                      # (t, scalars, bits, phase) per event
         self.last_event = None
 
     # ------------------------------------------------------------------
@@ -138,8 +148,9 @@ class FedTwoPhase:
     def federated_theta(self, log=False):
         theta, scalars, bits = self.p1.aggregate(self.agents, self._tau)
         if log:
-            # + one stop/continue flag back to every agent
-            self._log(scalars + self.N, bits + self.N * FLOAT_BITS, phase1=True,
+            # + one stop/continue flag back to every agent (adaptive stopping only)
+            flag = self.N if self.freeze_mode == "adaptive" else 0
+            self._log(scalars + flag, bits + flag * FLOAT_BITS, phase1=True,
                       rounds=getattr(self.p1, "last_rounds", 1))
         return theta
 
@@ -229,6 +240,11 @@ class FedTwoPhase:
         self.t += 1
         self.last_event = None
         if self.phase == 1:
+            if self.freeze_mode == "fixed":
+                if self.t >= self.T0_fixed and self.n_pool():
+                    self._finalise()
+                    self.last_event = "freeze"
+                return
             if self.t >= self.T0_cap and self.n_pool():
                 self._finalise()
                 self.last_event = "freeze"
@@ -240,7 +256,9 @@ class FedTwoPhase:
             return
         scalars, event = self.p2.end_round(self.t)
         if event:
-            self._log(scalars, scalars * FLOAT_BITS, rounds=getattr(self.p2, "last_rounds", 1))
+            bits = getattr(self.p2, "last_bits", None)     # compressed strategies report bits
+            self._log(scalars, scalars * FLOAT_BITS if bits is None else bits,
+                      rounds=getattr(self.p2, "last_rounds", 1))
             self.last_event = event
 
     # ------------------------------------------------------------------
@@ -250,6 +268,9 @@ class FedTwoPhase:
         self.comm_rounds += int(rounds)
         if phase1:
             self.comm_phase1 += int(scalars)
+            self.comm_phase1_bits += int(bits)
+            self.comm_rounds_phase1 += int(rounds)
+        self.comm_log.append((self.t, int(scalars), int(bits), 1 if phase1 else 2))
 
     def diagnostics(self):
         return dict(
@@ -260,4 +281,8 @@ class FedTwoPhase:
             theta_hat=self.theta_hat, theta_local=self.theta_local,
             comm_scalars=self.comm_scalars, comm_bits=self.comm_bits,
             comm_phase1=self.comm_phase1, comm_rounds=self.comm_rounds,
+            comm_phase1_bits=self.comm_phase1_bits,
+            comm_rounds_phase1=self.comm_rounds_phase1,
+            comm_log=np.array(self.comm_log, dtype=np.int64).reshape(-1, 4),
+            trigger_counts=getattr(self.p2, "trigger_counts", None),
         )

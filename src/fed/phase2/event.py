@@ -19,7 +19,15 @@ class EventTriggered(ServerSync):
     def __init__(self, gamma=1.0):
         self.gamma = float(gamma)
 
+    def setup(self, N, n_slots):
+        super().setup(N, n_slots)
+        # trigger_counts[j]: syncs at which bin j met the trigger (for the
+        # "at most 1 + log_{1+gamma}(NT) syncs per bin" check, exp22)
+        self.trigger_counts = np.zeros(n_slots, dtype=np.int64)
+
     def end_round(self, t):
-        if np.any(self.dn > self.gamma * np.maximum(self.G_n, 1)[None, :]):
+        hot = (self.dn > self.gamma * np.maximum(self.G_n, 1)[None, :]).any(axis=0)
+        if hot.any():
+            self.trigger_counts += hot
             return self.sync(), "sync"
         return 0, None
