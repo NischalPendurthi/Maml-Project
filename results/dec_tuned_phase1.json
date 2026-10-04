@@ -1,0 +1,29 @@
+{
+ "flood": {},
+ "consensus": {
+  "steps": 5
+ },
+ "pushsum": {},
+ "gossip": {
+  "k": 50
+ },
+ "chebyshev": {
+  "k": 20
+ },
+ "tree": {},
+ "dgd": {
+  "k": 50,
+  "lr": 0.02
+ },
+ "gt": {
+  "k": 50,
+  "lr": 0.05
+ },
+ "dlocal": {
+  "k": 50,
+  "lr": 0.1,
+  "local_steps": 5
+ },
+ "local": {},
+ "server": {}
+}

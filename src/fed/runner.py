@@ -45,7 +45,12 @@ def make_fed_envs(N, d, K, link, sigma=0.1, seed=0, run_seed=0, index_scale=1.0,
 
 def build_fed(config, envs, T, rng):
     kw = dict(config)
-    cls = ENGINES[kw.pop("engine", "fed")]
+    engine = kw.pop("engine", "fed")
+    if engine == "dec":                       # serverless engine, src/dec/
+        from ..dec.engine import DecTwoPhase
+        cls = DecTwoPhase
+    else:
+        cls = ENGINES[engine]
     kw.pop("label", None)
     kw.pop("style", None)
     env = envs[0]

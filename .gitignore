@@ -56,3 +56,4 @@ scratch/
 # resumable benchmark checkpoints
 results/*.cells
 results/*.tmp
+results/logs/

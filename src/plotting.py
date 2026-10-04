@@ -43,10 +43,9 @@ def band(ax, x, mean, half, **kw):
 def save(fig, name):
     import os
     os.makedirs(RESULTS, exist_ok=True)
-    for ext in ("pdf", "png"):
-        fig.savefig(f"{RESULTS}/{name}.{ext}")
+    fig.savefig(f"{RESULTS}/{name}.png")
     plt.close(fig)
-    print(f"  wrote {RESULTS}/{name}.pdf / .png")
+    print(f"  wrote {RESULTS}/{name}.png")
 
 
 # Diverging ramp for "ratio to a reference": blue = better, neutral gray = equal,

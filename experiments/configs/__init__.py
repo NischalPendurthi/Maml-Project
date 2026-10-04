@@ -8,6 +8,7 @@ variant is a new dict, never new src code.
     phase2_variants.py how bin statistics are shared (Phase 1 held fixed)
     fl_variants.py     every federated-learning METHOD (FedAvg, SCAFFOLD, ...) as a
                        Phase-1 or Phase-2 variant, with tuning grids (exp10–exp12)
+    decentralized.py   the serverless, communication-matrix version (exp14–exp21)
 
 Every config may carry `label` and `style` (matplotlib kwargs) for plotting;
 the runner strips them before building the algorithm.

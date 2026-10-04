@@ -22,10 +22,16 @@ y_{i,t} = f( <x_{i,t}, θ*> ) + η_{i,t}        f unknown, non-monotone, θ* unk
    FedYogi, FedNova, SCAFFOLD, FedDyn, split learning, distillation, gradient-based FL,
    personalised FL, plus exact sufficient statistics) as the aggregator of each phase,
    under four kinds of agent heterogeneity (E10–E13).
-4. **The version to prove** is *sufficient-statistic Fed-ZoomSIB with event-triggered
-   sync*: it ranks first in the combined benchmark, needs **134× less communication** than
-   per-round sync for the same regret, and is the only variant whose estimators are
-   *exactly* the centralised ones. That exactness is what makes a clean proof possible.
+4. **We built a serverless version** in which agents talk only over a graph with a
+   communication matrix: 13 topologies, 5 mixing matrices, link failures, randomised gossip,
+   directed links, 11 Phase-1 and 13 Phase-2 strategies (E14–E21). *Spanning-tree pooling +
+   event-triggered flooding* comes within **3 %** of the server version **with the same
+   communication**, and keeps the N^0.44–0.46 scaling on well-connected graphs.
+5. **The version to prove** is *sufficient-statistic Fed-ZoomSIB with event-triggered
+   sync and a fixed Phase-1 length*: it ranks first in both benchmarks, needs **134× less
+   communication** than per-round sync for the same regret, and is the only variant whose
+   estimators are *exactly* the centralised ones. That exactness is what makes a clean
+   proof possible. The decentralised twin above is the natural second theorem.
    See [Which version to prove](#which-version-to-prove).
 
 ---
@@ -58,6 +64,7 @@ ZoomSIB-UCB has two phases, and both can be federated:
 | 1 | Single-agent baseline and reproduction (E1–E5) | **complete** |
 | 2 | Fed-ZoomSIB: federated Phase 1 + cooperative Phase 2, communication study (E6–E9) | **complete** |
 | 3 | FL-method benchmark across both phases and four heterogeneity scenarios (E10–E13) | **complete** |
+| 3b | Decentralised version over a communication graph, no server (E14–E21) | **complete** |
 | 4 | Regret analysis of the chosen version | **next** — plan [below](#proof-plan) |
 | 5 | One extension (heterogeneous θ* / safety / Byzantine agents) | not started |
 
@@ -80,6 +87,14 @@ ZoomSIB-UCB has two phases, and both can be federated:
 | E11 | `exp11_fl_phase2.py` | Which **FL method** should share the bin table? | only sufficient statistics are exact; model averaging is biased (5–20× the staleness error), iterative methods cost 8–16× more | `fig11`, [table](results/fl_phase2_benchmark.md) |
 | E12 | `exp12_fl_benchmark.py` | Phase-1 method × Phase-2 method, all scenarios | **winner: sufficient statistics + event-triggered sync** | `fig12`, [table](results/fl_benchmark.md) |
 | E13 | `exp13_bin_width.py` | Bin width for N agents: `T^{-1/3}` or `(NT)^{-1/3}`? | the theory-optimal `(NT)^{-1/3}` is 7–13 % worse on benign links | `fig13` |
+| E14 | `exp14_dec_phase1.py` | Pooling θ over a graph: which strategy, which stopping rule? | tree and Chebyshev gossip match the server; the `any` stop rule doubles regret, a fixed T₀ beats adaptive stopping | `fig14`, [table](results/dec_phase1_benchmark.md) |
+| E15 | `exp15_dec_phase2.py` | Sharing the bin table over a graph | event-triggered flooding: +2–5 % regret at the server's communication; consensus costs 2 000× more | `fig15`, [table](results/dec_phase2_benchmark.md) |
+| E16 | `exp16_dec_topology.py` | 12 topologies × 5 designs | at a fixed T₀, flooding's cost grows with the diameter (+1 % at D = 1 → +15 % at D = 15), consensus's with the spectral gap | `fig16`, [table](results/dec_topology_fair.md) |
+| E17 | `exp17_dec_mixing.py` | Which communication matrix? | best-constant Laplacian is best; row-stochastic weights are biased on irregular graphs (+33 % on a star) | `fig17`, [table](results/dec_mixing_fair.md) |
+| E18 | `exp18_dec_dynamic.py` | Link failures, randomised gossip, directed links | flooding most robust (+27 % at 90 % failures); Chebyshev collapses (2–7×) | `fig18`, [table](results/dec_dynamic_benchmark.md) |
+| E19 | `exp19_dec_scaling.py` | Network regret vs N without a server | exponent 0.44 (complete), 0.46 (hypercube), 0.55 (ring) vs 0.43 server, 0.98 independent | `fig19`, [table](results/dec_scaling_benchmark.md) |
+| E20 | `exp20_dec_benchmark.py` | Phase-1 × Phase-2 decentralised leaderboard at fixed T₀ | **winner: spanning tree + event-triggered flooding**, ×1.03 of the server at the same communication | `fig20`, [table](results/dec_benchmark.md) |
+| E21 | `exp21_dec_live.py` | Watch it run on a graph | live GIFs: ring, directed graph, failing hypercube | `dec_live_*.gif` |
 
 Common setup unless stated: `d = 10`, `K = 20` arms per round, noise σ = 0.1, contexts scaled
 to unit index variance, `T = 10 000` rounds per agent, N = 8 agents, 8 paired trials (every
@@ -277,9 +292,153 @@ finer bins only add bins to explore.
 
 ---
 
+## Decentralised Fed-ZoomSIB: a communication matrix, no server (E14–E21)
+
+The same two-phase algorithm, but every network-wide quantity crosses a graph edge by edge
+([src/dec/](src/dec/)). There is no coordinator.
+
+| Axis | Options implemented |
+|---|---|
+| Topology ([graph/topologies.py](src/dec/graph/topologies.py)) | complete, star, ring, path, torus, grid, hypercube, random expander, Erdős–Rényi, random geometric, small-world, barbell, directed |
+| Mixing matrix P ([graph/mixing.py](src/dec/graph/mixing.py)) | Metropolis–Hastings, max-degree, best-constant Laplacian, lazy, row-stochastic (not doubly stochastic) |
+| Dynamics ([graph/graph.py](src/dec/graph/graph.py)) | static, random link failures with probability q, random pairwise matchings (randomised gossip), directed arcs |
+| Phase 1: pooling θ ([dec/phase1/](src/dec/phase1/)) | flooding (exact relay), running consensus, push-sum, burst gossip, Chebyshev-accelerated gossip, spanning-tree aggregation, DGD, gradient tracking, decentralised FedAvg, local-only, server |
+| Freeze | fixed Phase-1 length, or a stop flag spreading hop by hop (`stop_rule` `any` / `all`); per-agent θ̂_i or exact agreement; W by max-consensus |
+| Phase 2: sharing the table ([dec/phase2/](src/dec/phase2/)) | flooding every C rounds or event-triggered, running consensus (Landgren et al.), push-sum, burst gossip with naive or effective-sample-size counts, one-hop neighbours, none, server references |
+
+Setup: N = 16 unless stated, `T = 10 000` per agent, 6 paired trials.
+
+### Results
+
+**Fair comparisons need a fixed Phase-1 length.** With adaptive stopping, agents that disagree
+explore longer, and at N = 16 a longer Phase 1 alone lowers regret. That confounds topology,
+mixing and strategy with Phase-1 length (seen in E16/E17). So E16–E20 compare at a fixed T₀,
+and E14 studies the stopping rule itself:
+- the `any` rule (freeze when one agent is stable) fires at the earliest of 16 stopping
+  times: T₀ of 15–25 against the server's 35, and up to 2.3× regret;
+- `all` roughly halves that regret;
+- a **fixed T₀ = 35 beats the server's adaptive stop at the same average T₀** (≈ 7 100 vs
+  9 674), because adaptive stopping occasionally stops very early.
+
+**E14, Phase 1** ([fig14](results/fig14_dec_phase1.png), [table](results/dec_phase1_benchmark.md)).
+- *Exact methods:* spanning-tree aggregation is exact on every undirected graph and the
+  cheapest (2 566 scalars).
+- *Approximate methods, after 40 rounds offline:* Chebyshev gossip (20 steps) reaches
+  1.4·10⁻³ consensus error on the ring and 5·10⁻⁸ on the expander; plain gossip needs 50
+  steps for 1.7·10⁻² on the ring.
+- *Biased methods:* DGD and decentralised FedAvg stay biased (4–46 %), as constant-step
+  methods should. On the directed graph everything that uses local weights is biased except
+  push-sum and flooding.
+
+**E15, Phase 2** ([fig15](results/fig15_dec_phase2.png), [table](results/dec_phase2_benchmark.md)),
+with Phase 1 held exact:
+- **event-triggered flooding costs +2–5 % regret using 70–72k scalars, about the server's
+  69k**;
+- flooding every round costs +1–3 %;
+- running consensus and push-sum match it at 140–285M scalars (≈ 2 000× more);
+- burst gossip costs +4–13 %, and effective-sample-size counts did *not* beat naive counts;
+- one-hop sharing costs +20–91 %, and no sharing +72–118 %.
+
+**E16, topology** ([fig16](results/fig16_dec_topology.png), [fair](results/fig16_dec_topology_fair.png),
+[table](results/dec_topology_fair.md)), 12 graphs × 5 designs at a fixed T₀ = 60.
+Ratio to a server at the same T₀:
+
+| graph (diameter, gap) | event flooding | flooding every round | running consensus | push-sum | Chebyshev + ESS |
+|---|---:|---:|---:|---:|---:|
+| complete (1, 1.00) | 1.012 | 0.997 | 0.997 | 0.997 | 1.086 |
+| expander (3, 0.27) | 1.048 | 1.033 | 1.013 | 1.045 | 1.088 |
+| hypercube / torus (4, 0.40) | 1.055–1.056 | 1.039–1.042 | 1.020 | 1.050–1.054 | 1.086–1.087 |
+| star (2, 0.06) | 1.049 | 1.033 | 1.145 | 1.105 | 1.114 |
+| grid (6, 0.13) | 1.067 | 1.052 | 1.033 | 1.085 | 1.104 |
+| barbell (3, 0.02) | 1.052 | 1.037 | 1.045 | 1.138 | 1.202 |
+| ring (8, 0.05) | 1.115 | 1.098 | 1.081 | 1.240 | 1.624 |
+| path (15, 0.01) | 1.148 | 1.132 | 1.133 | 1.378 | 1.982 |
+
+The two families depend on different graph quantities, as theory predicts:
+- **Relay methods track the diameter:** event flooding costs +1 % at D = 1, +5 % at D = 3–4,
+  +7 % at D = 6, +12 % at D = 8 and +15 % at D = 15.
+- **Mixing methods track the spectral gap:** consensus is best of all on expanders but worst
+  on the star (gap 0.06), although the star's diameter is only 2.
+
+Erdős–Rényi, small-world and geometric graphs sit with the expander. The server itself gains
+18 % from the longer Phase 1 (7 131 at T₀ = 35 vs 5 839 at T₀ = 60).
+
+**E17, mixing matrices** ([fig17](results/fig17_dec_mixing_fair.png), [table](results/dec_mixing_fair.md)).
+Ratio to a server at the same T₀, for running consensus (both phases):
+
+| mixing | star | barbell | ring | torus | expander |
+|---|---:|---:|---:|---:|---:|
+| Metropolis | 1.145 | 1.045 | 1.081 | 1.020 | 1.013 |
+| max-degree | 1.145 | 1.046 | 1.081 | 1.020 | 1.013 |
+| best-constant Laplacian | **1.072** | 1.079 | 1.078 | 1.020 | 1.011 |
+| lazy | 1.294 | 1.078 | 1.123 | 1.025 | 1.021 |
+| row-stochastic (not doubly stochastic) | 1.333 | 1.052 | 1.081 | 1.020 | 1.013 |
+
+- On regular graphs (ring, torus, expander) Metropolis, max-degree and row-stochastic weights
+  are the same matrix, so the choice does not matter.
+- On the irregular star, row-stochastic weights are biased and the worst, and lazy weights mix
+  too slowly.
+- The best-constant Laplacian is the best rule overall. It also cuts Chebyshev gossip's cost on
+  the ring from +62 % to +21 %.
+- Relay methods (flooding, trees) do not use P at all.
+
+**E18, unreliable and directed links** ([fig18](results/fig18_dec_dynamic.png), [table](results/dec_dynamic_benchmark.md)),
+ratio to a server at the same T₀:
+
+| | q = 0.3 | q = 0.6 | q = 0.9 | random matching | directed |
+|---|---:|---:|---:|---:|---:|
+| Flooding + event flooding | 1.06–1.07 | 1.09–1.10 | 1.25–1.27 | 1.13–1.16 | 1.08 |
+| Running consensus | 1.03–1.04 | 1.09–1.11 | 1.49–1.50 | 1.22–1.26 | 1.11 |
+| Push-sum | 1.08 | 1.15 | 1.61–1.63 | 1.22–1.26 | 1.48 |
+| Chebyshev + ESS gossip | 2.02–2.10 | 3.45–3.54 | 6.66–7.31 | 5.95–6.15 | 1.54 |
+
+Flooding is the most robust. Chebyshev acceleration assumes a known, fixed P, and collapses
+when links fail. Push-sum is the theoretically correct method on digraphs, yet is *worse* than
+biased consensus there.
+
+**E19, scaling** ([fig19](results/fig19_dec_scaling.png), [table](results/dec_scaling_benchmark.md)),
+with a fixed pooled Phase-1 size. Exponent of network regret in N, N = 4 … 32:
+
+| server | flooding, complete | flooding, hypercube | flooding, ring | Chebyshev, ring | federated with adaptive stop | independent |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0.43 | 0.44 | 0.46 | 0.55 | 0.87 | 0.81 | 0.98 |
+
+At N = 32, flooding on the hypercube is within 6 % of the server, and on the ring (diameter 16)
+within 30 %, which matches the delay term `N · D · N_bins` of the serverless theorem.
+
+**E20, leaderboard** ([fig20](results/fig20_dec_benchmark.png), [table](results/dec_benchmark.md)),
+5 Phase-1 × 5 Phase-2 strategies on ring/torus/expander × {iid, covariate}, all at T₀ = 60:
+
+| # | configuration | regret ÷ best | scalars (torus) |
+|---:|---|---:|---:|
+| 1 | server + event-triggered server sync | 1.000 | 56 836 |
+| 2–7 | spanning tree or Chebyshev + flooding / consensus / push-sum every round | 1.019–1.020 | 9.5M–295M |
+| **8** | **spanning tree + event-triggered flooding** | **1.030** | **60 481** |
+| 9 | Chebyshev gossip + event-triggered flooding | 1.031 | 74 231 |
+| 10–17 | running consensus or flooding in Phase 1 | 1.032–1.050 | 0.27M–296M |
+| 18–21 | push-sum in Phase 1 | 1.12–1.13 | 0.1M–296M |
+| 22–26 | burst Chebyshev/ESS gossip in Phase 2 | 1.19–1.29 | ≈ 45M |
+| 27 | federated, *adaptive* stop (T₀ ≈ 35) | 1.395 | 152 565 |
+| 28 | independent agents | 4.866 | 0 |
+
+**E21, watching it run.** The decentralised dashboard draws the actual graph: edges light up
+when they carry a message, and the θ panel shows every agent's own consensus estimate
+converging before the freeze.
+
+```bash
+python experiments/exp21_dec_live.py                                     # ring, consensus + flooding
+python experiments/exp21_dec_live.py --graph directed --p1 pushsum --p2 pushsum
+python experiments/exp21_dec_live.py --graph hypercube --p1 chebyshev --p2 gossip --failure 0.5
+```
+
+![Decentralised Fed-ZoomSIB live](results/dec_live_ring_consensus_flood.gif)
+
+---
+
 ## Which version to prove
 
-**Fed-ZoomSIB with sufficient statistics and event-triggered sync**, config:
+**Fed-ZoomSIB with sufficient statistics, event-triggered sync and a fixed Phase-1 length**,
+config:
 
 ```python
 dict(engine="fed", phase1="exact",
@@ -302,6 +461,16 @@ dict(engine="fed", phase1="exact",
 | Lowest communication | 84k scalars vs 11.3M for per-round sync (134×) and 9.9M–19.7M for model-based FL |
 | Robust | no bias under participation or covariate shift, unlike one-shot FedAvg, FedNova, FedDyn |
 | **Provable** | both estimators are *exactly* the centralised ones, so Dey et al.'s single-agent lemmas apply to the pooled sample with no optimisation-error term; iterative FL methods would add an error term that decays only with the condition number of a bin table, and model averaging is biased outright |
+| Fixed Phase-1 length | the single-agent adaptive stop costs ×1.40 regret at N = 16 and ×2.3 at N = 32 (E19, E20), and is not covered by the theory anyway |
+
+**Without a server**, the twin is *spanning-tree pooling + event-triggered flooding* at a fixed
+T₀: within 3 % of the server at the same communication (E20). The second theorem then adds a
+delay term `Õ(N · D · N_bins)` (D = diameter) to the server bound.
+
+The full comparison is in
+[docs/report-server-vs-serverless.md](docs/report-server-vs-serverless.md): what each theorem
+needs, proof effort, applications, acceptance odds, and a multi-index extension that makes
+Phase 1 non-trivial.
 
 ### Proof plan
 
@@ -371,6 +540,7 @@ Wall-clock times are for a 12-core machine.
 # tests
 python tests/test_fedzoomsib.py               # exact-pooling identity + Phase-2 bookkeeping   ~15 s
 python tests/test_fl.py                       # FL layer: suffstat ≡ exact, drift, scenarios  ~20 s
+python tests/test_dec.py                      # graphs, gossip, exactness, engine on all graphs ~10 s
 
 # single agent
 python experiments/exp01_stein_rate.py        # Stein convergence rate         ~1 min
@@ -390,15 +560,27 @@ python experiments/exp10_fl_phase1.py         # FL methods as the Phase-1 aggreg
 python experiments/exp11_fl_phase2.py         # FL methods as the Phase-2 aggregator  ~45 min
 python experiments/exp12_fl_benchmark.py      # combined leaderboard                  ~45 min
 python experiments/exp13_bin_width.py         # bin width for N agents                ~5 min
+
+# decentralised (communication matrix, no server); run exp14 first (E20 reads its tuning)
+python experiments/exp14_dec_phase1.py        # pooling θ over a graph + stopping rules ~1 h
+python experiments/exp15_dec_phase2.py        # sharing the bin table over a graph       ~1 h
+python experiments/exp16_dec_topology.py      # 12 topologies × 5 designs                ~2 h
+python experiments/exp17_dec_mixing.py        # 5 mixing matrices × 5 graphs             ~1 h
+python experiments/exp18_dec_dynamic.py       # link failures, matchings, directed       ~30 min
+python experiments/exp19_dec_scaling.py       # network regret vs N, no server           ~30 min
+python experiments/exp20_dec_benchmark.py     # decentralised leaderboard                ~1.5 h
+python experiments/exp21_dec_live.py          # live GIF on a graph                      ~15 min
 ```
 
 Every experiment caches its raw results, so `--replot` redraws figures without simulating.
 The long benchmarks (E10–E12) checkpoint after each (scenario, link) cell and resume if
 interrupted; `--redo=NAME` recomputes only the configurations whose name contains `NAME`
-(after changing one method's code). `--only-a` runs just the offline part of E10/E11.
+(after changing one method's code); `--redo=+NAME` only fills in configurations missing
+from the cache (to resume an interrupted redo). `--only-a` runs just the offline part of
+E10/E11/E14.
 
-Figures are written to `results/` as `.pdf` (for the deck) and `.png`; benchmark tables as
-`results/fl_*.md`.
+Figures are written to `results/` as `.png`; benchmark tables as `results/fl_*.md` and
+`results/dec_*.md`.  Long runs log to `results/logs/` (gitignored).
 
 The reference papers live in `papers/` (`python experiments/fetch_papers.py` re-downloads
 them). Build the pitch deck with `cd slides/pitch && pdflatex main.tex`.
@@ -422,6 +604,13 @@ src/                     reusable machinery only -- named algorithms are configs
     phase2/                how the bin table is shared: periodic, none, event, neighbor,
                              personalized, fl (any fl/ method)
     scenarios.py           heterogeneity: iid, participation, covariate, concept
+  dec/                   serverless version: agents communicate over a graph
+    graph/                 topologies, mixing matrices, link dynamics (Graph)
+    gossip.py              plain / Chebyshev consensus, max-consensus, relay
+    phase1/                flood, consensus, pushsum, gossip, chebyshev, tree, dgd, gt, dlocal, local, server
+    phase2/                flood (every C / event), consensus, pushsum, gossip (naive / ESS), neighbor, refs
+    engine.py              DecTwoPhase (engine="dec"): per-agent θ̂_i, stop flag, fixed or adaptive freeze
+    viz.py                 dashboard that draws the graph (exp21)
     runner.py              N-agent envs, episode loop, parallel sweeps, resumable cells
     viz.py                 live dashboard used by exp09
   envs.py  stein.py  zoomsib.py  baselines.py  base.py  runner.py  plotting.py   (single agent)
@@ -430,7 +619,10 @@ experiments/             one script per study (exp01–exp13); seeds fixed
   configs/               named algorithms = choices of building blocks (plain dicts)
     zoomsib.py  fed_zoomsib.py  phase1_variants.py  phase2_variants.py
     fl_variants.py         every FL method as a Phase-1 / Phase-2 variant + tuning grids
-tests/                   test_fedzoomsib.py  test_fl.py
+    decentralized.py       serverless strategies, labels, dec_config() (fixed T0 by default)
+  dec_common.py          resumable (graph, link, scenario) sweeps for exp14–exp20
+tests/                   test_fedzoomsib.py  test_fl.py  test_dec.py
+docs/                    report-server-vs-serverless.md
 results/                 figures, benchmark tables, tuned hyperparameters (caches gitignored)
 slides/pitch/            5-minute pitch deck (LaTeX)
 papers/                  reference PDFs
@@ -543,3 +735,15 @@ Federated learning (benchmarked in E10–E12)
 17. E. Jeong et al. *Communication-Efficient On-Device Machine Learning: Federated Distillation and Augmentation.* arXiv:1811.11479, 2018.
 18. O. Gupta, R. Raskar. *Distributed Learning of Deep Neural Network over Multiple Agents.* J. Netw. Comput. Appl., 2018 (split learning).
 19. T. Li, S. Hu, A. Beirami, V. Smith. *Ditto: Fair and Robust Federated Learning Through Personalization.* ICML 2021.
+
+Decentralised learning (benchmarked in E14–E21)
+
+20. L. Xiao, S. Boyd. *Fast Linear Iterations for Distributed Averaging.* Systems & Control Letters, 2004 (best-constant weights).
+21. S. Boyd, A. Ghosh, B. Prabhakar, D. Shah. *Randomized Gossip Algorithms.* IEEE Trans. Inf. Theory, 2006.
+22. D. Kempe, A. Dobra, J. Gehrke. *Gossip-Based Computation of Aggregate Information.* FOCS 2003 (push-sum).
+23. A. Nedić, A. Ozdaglar. *Distributed Subgradient Methods for Multi-Agent Optimization.* IEEE TAC, 2009 (DGD).
+24. A. Nedić, A. Olshevsky, W. Shi. *Achieving Geometric Convergence for Distributed Optimization over Time-Varying Graphs.* SIAM J. Optim., 2017 (DIGing / gradient tracking).
+25. K. Scaman, F. Bach, S. Bubeck, Y. T. Lee, L. Massoulié. *Optimal Algorithms for Smooth and Strongly Convex Distributed Optimization in Networks.* ICML 2017 (Chebyshev acceleration).
+26. X. Lian et al. *Can Decentralized Algorithms Outperform Centralized Algorithms?* NeurIPS 2017.
+27. P. Landgren, V. Srivastava, N. E. Leonard. *On Distributed Cooperative Decision-Making in Multiarmed Bandits.* ECC 2016.
+28. D. Martínez-Rubio, V. Kanade, P. Rebeschini. *Decentralized Cooperative Stochastic Bandits.* NeurIPS 2019.

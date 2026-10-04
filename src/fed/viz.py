@@ -73,6 +73,18 @@ class Recorder:
             return True
         return False
 
+    @staticmethod
+    def _thetas(algo):
+        """(network θ̂, per-agent θ̂_i).  Federated: the pooled estimate and each
+        agent's local-only one.  Decentralised: the pooled estimate a server
+        would have, and each agent's own CONSENSUS estimate."""
+        dec = hasattr(algo, "theta_now")
+        if algo.phase == 1:
+            return algo.federated_theta(), (algo.theta_now if dec else algo.local_thetas())
+        if dec:
+            return algo.theta_hat, algo.theta_agents
+        return algo.theta_hat, algo.theta_local
+
     def __call__(self, t, algo, inst):
         if algo.last_event:
             self._events[algo.last_event] += 1
@@ -80,10 +92,7 @@ class Recorder:
             self.t_freeze = t
 
         if algo.phase == 1 or algo.last_event == "freeze":
-            if algo.phase == 1:
-                th_fed, th_loc = algo.federated_theta(), algo.local_thetas()
-            else:
-                th_fed, th_loc = algo.theta_hat, algo.theta_local
+            th_fed, th_loc = self._thetas(algo)
             self.err_t.append(t)
             self.err_fed.append(l1_error(th_fed, self.theta_star))
             self.err_loc.append([l1_error(v, self.theta_star) for v in th_loc])
@@ -95,12 +104,15 @@ class Recorder:
                     comm_scalars=algo.comm_scalars, comm_rounds=algo.comm_rounds,
                     n_err=len(self.err_t))
         self._events = Counter()
+        th_fed, th_loc = self._thetas(algo)
+        if hasattr(algo, "g"):                          # decentralised: the round's graph
+            snap["A"] = algo.g.A.copy()
         if algo.phase == 1:
-            snap.update(theta_fed=algo.federated_theta(), theta_loc=algo.local_thetas(),
+            snap.update(theta_fed=th_fed, theta_loc=th_loc,
                         samples=[(np.asarray(ag.X_buf).reshape(-1, algo.d),
                                   np.asarray(ag.y_buf)) for ag in algo.agents])
         else:
-            snap.update(theta_fed=algo.theta_hat.copy(), theta_loc=algo.theta_local.copy(),
+            snap.update(theta_fed=th_fed.copy(), theta_loc=th_loc.copy(),
                         W=algo.W, Delta=algo.Delta, N_bins=algo.N_bins,
                         ucb_const=algo.ucb_const,
                         G_n=algo.p2.shared_table()[0].copy(),
@@ -113,6 +125,15 @@ class Recorder:
 
 
 class Dashboard:
+    TITLE = "Fed-ZoomSIB live"
+    ALG_NAME = "Fed-ZoomSIB"
+    PHASE1_TXT = "Phase 1 · federated Stein estimation of θ*"
+    LOCAL_LABEL = "agent's own estimate"
+    LOCAL_ERR = "agents alone"
+    FED_LABEL = "federated θ̂ (= pooled)"
+    FOOTER = ("Agents share an unknown θ* and link f. They never send raw data: "
+              "only Stein sums (Phase 1) and per-bin (n, S) statistics (Phase 2).")
+
     def __init__(self, fig, rec, *, link_fn, link_name, N, d, K, T, phase2_desc,
                  ind_curve, fed_curve):
         self.fig, self.rec = fig, rec
@@ -151,13 +172,12 @@ class Dashboard:
             ax.cla()
             ax.set_facecolor(SURFACE)
         t, ph = snap["t"], snap["phase"]
-        phase_txt = ("Phase 1 · federated Stein estimation of θ*" if ph == 1
+        phase_txt = (self.PHASE1_TXT if ph == 1
                      else f"Phase 2 · cooperative sleeping UCB over bins ({self.p2_desc})")
-        self.title.set_text(f"Fed-ZoomSIB live   ·   round {t:,} / {self.T:,}")
+        self.title.set_text(f"{self.TITLE}   ·   round {t:,} / {self.T:,}")
         self.subtitle.set_text(f"N = {self.N} agents · d = {self.d} · K = {self.K} arms/round · "
                                f"link: {self.link_name} (unknown to agents)     —     {phase_txt}")
-        self.footer.set_text("Agents share an unknown θ* and link f. They never send raw data: "
-                             "only Stein sums (Phase 1) and per-bin (n, S) statistics (Phase 2).")
+        self.footer.set_text(self.FOOTER)
         self._network(snap)
         self._theta(snap)
         self._error(snap)
@@ -256,10 +276,10 @@ class Dashboard:
         for i in range(self.N):
             v = loc[i] * np.sign(loc[i] @ self.rec.theta_star or 1.0)
             ax.scatter(j + off[i], v, s=16, color=self.colors[i], zorder=3, linewidths=0,
-                       label="agent's own estimate" if i == 0 else None)
+                       label=self.LOCAL_LABEL if i == 0 else None)
         fed = snap["theta_fed"] * np.sign(snap["theta_fed"] @ self.rec.theta_star or 1.0)
         ax.scatter(j, fed, s=70, marker="D", color=INK, edgecolors="#ffffff", linewidths=1.2,
-                   zorder=4, label="federated θ̂ (= pooled)")
+                   zorder=4, label=self.FED_LABEL)
         ax.axhline(0, color=MUTED, lw=0.8)
         ax.set_xticks(j, [f"θ{k + 1}" for k in j], fontsize=8)
         lim = max(0.45, float(np.abs(self.rec.theta_star).max()) * 1.6)
@@ -283,7 +303,7 @@ class Dashboard:
             ax.plot(t, self.rec.err_fed[:n], color=INK, lw=2.6)
             ax.text(t[-1], self.rec.err_fed[n - 1], "  federated", fontsize=8.5,
                     color=INK, va="center", weight="bold")
-            ax.text(t[-1], float(np.mean(loc[-1])), "  agents alone", fontsize=8.5,
+            ax.text(t[-1], float(np.nanmean(loc[-1])), "  " + self.LOCAL_ERR, fontsize=8.5,
                     color=INK2, va="bottom")
         if self.rec.t_freeze and snap["t"] >= self.rec.t_freeze:
             ax.axvline(self.rec.t_freeze, color=PHASE_COLOR[2], lw=1, ls="--")
@@ -378,7 +398,7 @@ class Dashboard:
             li, lf = (mid + gap / 2, mid - gap / 2) if yi >= yf else (mid - gap / 2, mid + gap / 2)
         ax.text(t, li, f"  {self.N}× independent  {yi:,.0f}", fontsize=8.5, color=INK2,
                 va="center")
-        ax.text(t, lf, f"  Fed-ZoomSIB  {yf:,.0f}", fontsize=8.5, color=INK, va="center",
+        ax.text(t, lf, f"  {self.ALG_NAME}  {yf:,.0f}", fontsize=8.5, color=INK, va="center",
                 weight="bold")
         if self.rec.t_freeze and t >= self.rec.t_freeze:
             ax.axvline(self.rec.t_freeze, color=PHASE_COLOR[2], lw=1, ls="--")

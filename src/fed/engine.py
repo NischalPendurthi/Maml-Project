@@ -182,8 +182,12 @@ class FedTwoPhase:
     # ------------------------------------------------------------------
     # Phase 2
     # ------------------------------------------------------------------
-    def _bins(self, X):
-        z = X @ self.theta_hat
+    def _theta_for(self, i):
+        """The frozen direction agent i projects with (shared here; per-agent in src/dec)."""
+        return self.theta_hat
+
+    def _bins(self, X, i=None):
+        z = X @ self._theta_for(i)
         b = np.ceil((z + self.W) / self.Delta).astype(np.int64)
         b = np.clip(b, 1, self.N_bins)
         b[np.abs(z) > self.W] = -1
@@ -196,7 +200,7 @@ class FedTwoPhase:
         ag = self.agents[i]
         if self.phase == 1:
             return int(ag.rng.integers(self.K))
-        b = self._bins(X)
+        b = self._bins(X, i)
         self._last = (i, X, b)                      # update() reuses the projection
         avail = b >= 0
         if not np.any(avail):
@@ -216,7 +220,7 @@ class FedTwoPhase:
             ag.X_buf.append(X[a])
             return
         li, lX, lb = self._last if self._last is not None else (None, None, None)
-        b = (lb if li == i and lX is X else self._bins(X))[a]
+        b = (lb if li == i and lX is X else self._bins(X, i))[a]
         if b >= 0:
             self.p2.record(i, b, y)
             self.contrib[i, b] += 1
