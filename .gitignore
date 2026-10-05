@@ -57,3 +57,8 @@ scratch/
 results/*.cells
 results/*.tmp
 results/logs/
+
+# smoke runs of the claims experiments (--quick) and their caches
+results/quick/
+results/cache/
+logs/

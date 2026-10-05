@@ -65,7 +65,7 @@ ZoomSIB-UCB has two phases, and both can be federated:
 | 2 | Fed-ZoomSIB: federated Phase 1 + cooperative Phase 2, communication study (E6–E9) | **complete** |
 | 3 | FL-method benchmark across both phases and four heterogeneity scenarios (E10–E13) | **complete** |
 | 3b | Decentralised version over a communication graph, no server (E14–E21) | **complete** |
-| 4 | Regret analysis of the chosen version | **next** — plan [below](#proof-plan) |
+| 4 | Regret analysis of the chosen version | server proofs drafted ([proofs](docs/proofs/server.pdf)); claims tested in [claims-evidence](docs/claims-evidence.md) (E22–E24, E28) |
 | 5 | One extension (heterogeneous θ* / safety / Byzantine agents) | not started |
 
 ---
@@ -95,6 +95,10 @@ ZoomSIB-UCB has two phases, and both can be federated:
 | E19 | `exp19_dec_scaling.py` | Network regret vs N without a server | exponent 0.44 (complete), 0.46 (hypercube), 0.55 (ring) vs 0.43 server, 0.98 independent | `fig19`, [table](results/dec_scaling_benchmark.md) |
 | E20 | `exp20_dec_benchmark.py` | Phase-1 × Phase-2 decentralised leaderboard at fixed T₀ | **winner: spanning tree + event-triggered flooding**, ×1.03 of the server at the same communication | `fig20`, [table](results/dec_benchmark.md) |
 | E21 | `exp21_dec_live.py` | Watch it run on a graph | live GIFs: ring, directed graph, failing hypercube | `dec_live_*.gif` |
+| E22 | `exp22_single_vs_network.py` | Is the server setting just "one agent with N·T pulls"? | yes: N synced agents are within 0–10% of one agent at equal N·T; independent agents 2.3–5.1× worse; sync rounds grow logarithmically (61 → 213 as N·T grows 32×) | `fig22`, `fig22b`, [table](results/claims_e22.md) |
+| E23 | `exp23_server_vs_serverless_D.py` | Cost of no server vs graph diameter | +1.5% (D = 1) to +9% (D = 15), sublinear in D, nearly flat in T; 60–150× below the N·D·N_bins bound term | `fig23`, [table](results/claims_e23.md) |
+| E24 | `exp24_phase1_share.py` | How much traffic is Phase 1? | 0.1–1.6% for d = 5…200, shrinking with N·T; quantising it saves ≤ 0.4% of bits | `fig24`, [table](results/claims_e24.md) |
+| E28 | `exp28_dec_explore_coupling.py` | Exploration length, agreement and stopping on graphs | best T0 barely moves with D; the cost is disagreement (×1.25–1.34 on ring/path), removed by one agreement pass; "stop when any" ×1.4–2.2 | `fig28`, `fig28b`, [table](results/claims_e28.md) |
 
 Common setup unless stated: `d = 10`, `K = 20` arms per round, noise σ = 0.1, contexts scaled
 to unit index variance, `T = 10 000` rounds per agent, N = 8 agents, 8 paired trials (every
@@ -570,6 +574,11 @@ python experiments/exp18_dec_dynamic.py       # link failures, matchings, direct
 python experiments/exp19_dec_scaling.py       # network regret vs N, no server           ~30 min
 python experiments/exp20_dec_benchmark.py     # decentralised leaderboard                ~1.5 h
 python experiments/exp21_dec_live.py          # live GIF on a graph                      ~15 min
+python3 experiments/exp22_single_vs_network.py      # one agent at NT vs N agents at T     ~30 min
+python3 experiments/exp23_server_vs_serverless_D.py # cost of no server vs diameter         ~50 min
+python3 experiments/exp24_phase1_share.py           # Phase-1 share of communication        ~15 min
+python3 experiments/exp28_dec_explore_coupling.py   # exploration vs agreement on graphs    ~1 h
+# (E22–E24 and E28 take --quick for a few-minute smoke run into results/quick/)
 ```
 
 Every experiment caches its raw results, so `--replot` redraws figures without simulating.

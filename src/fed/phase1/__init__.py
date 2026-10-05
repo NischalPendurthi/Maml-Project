@@ -4,10 +4,12 @@
     normavg    FedAvg of finished, normalised local estimates
     median     coordinate-wise median (robust aggregation)
     quantized  compressed exact upload
+    compressed exact upload through any compressor (quant / top-k / rand-k)
     fl         ANY federated-learning method from src/fed/fl/, on the Stein or LS objective
 """
 
 from .base import Phase1Strategy
+from .compressed import CompressedStein
 from .exact import ExactStein
 from .fl import FLPool
 from .median import CoordinateMedian
@@ -15,7 +17,7 @@ from .normavg import NormalizedAverage
 from .quantized import QuantizedStein
 
 PHASE1 = {cls.name: cls for cls in (ExactStein, NormalizedAverage, CoordinateMedian,
-                                    QuantizedStein, FLPool)}
+                                    QuantizedStein, FLPool, CompressedStein)}
 
 
 def make_phase1(spec, rng, **kw):
@@ -26,4 +28,4 @@ def make_phase1(spec, rng, **kw):
 
 
 __all__ = ["PHASE1", "make_phase1", "Phase1Strategy", "ExactStein", "NormalizedAverage",
-           "CoordinateMedian", "QuantizedStein", "FLPool"]
+           "CoordinateMedian", "QuantizedStein", "FLPool", "CompressedStein"]
