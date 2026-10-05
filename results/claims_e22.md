@@ -33,7 +33,7 @@ Total budget N·T = 160,000 pulls, pooled Phase-1 size 960, Δ = (NT)^(-1/3), 20
 
 ## Sync rounds vs horizon (N = 8, event-triggered, γ = 0.5)
 
-| N·T | N_bins | measured syncs | Thm 5 bound | per-round sync | max syncs by one bin | per-bin bound |
+| N·T | N_bins | measured syncs | Thm 12 bound | per-round sync | max syncs by one bin | per-bin bound |
 |---|---|---|---|---|---|---|
 | 10,000 | 153 | 61.0 | 3,625 | 1,130 | 2.9 | 23.7 |
 | 20,000 | 192 | 78.5 | 4,893 | 2,380 | 3.0 | 25.4 |

@@ -3,6 +3,9 @@
 \usepackage{amsmath,amssymb,amsthm,mathtools}
 \usepackage{enumitem}
 \usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{float}
+\graphicspath{{../../results/}}
 \usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
 
 \newtheorem{theorem}{Theorem}
@@ -269,6 +272,13 @@ term by up to $\sqrt N$ in the \emph{bound}. E22 finds no such loss in practice:
 event-triggered run matches per-round sync.
 \end{remark}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{fig22_single_vs_network.png}
+\caption{Empirical check of Theorems~\ref{thm:lower} and~\ref{thm:upper} (E22, 20 paired trials). Fixed total budget $NT=160\,000$, same pooled exploration and bin width for every $N$. Left: regret against total pulls; the single agent at horizon $NT$ and $N=16$ synced agents overlap. Right: final regret against $N$; synced agents stay within 0--10\% of the single agent and never beat it, while independent agents are 2.3--5.1$\times$ worse.}
+\label{fig:e22}
+\end{figure}
+
 \section{Communication}
 
 \begin{theorem}[Sync rounds]\label{thm:comm}
@@ -306,6 +316,13 @@ concentrates pulls on a few near-optimal bins, and most bins trigger at most onc
 gap-dependent communication bound is open (Section~\ref{sec:tradeoff}).
 \end{remark}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{fig22b_sync_rounds.png}
+\caption{Empirical check of Theorem~\ref{thm:comm} (E22 part 2, $N=8$). Left: Phase-2 sync rounds of the event trigger grow logarithmically (61$\to$213 as $NT$ grows 32$\times$) while per-round sync grows linearly; the theorem's bound (dashed) is 60--75$\times$ above the measurement. Right: the busiest bin triggers about 3 syncs against a per-bin bound of 24--32.}
+\label{fig:e22b}
+\end{figure}
+
 \begin{proposition}[Phase 1 is a vanishing share]\label{prop:share}
 With fixed $T_0$, Phase~1 sends $N(2d+3)$ scalars: one $(d+1)$-vector up per agent, $\max|z|$ up,
 and $(\hat\theta_0,W)$ down. Suppose $\gamma<1$, and let $\Nb^{\rm used}$ be the number of bins
@@ -322,6 +339,20 @@ merged at the next sync and broadcast (3 scalars) to all $N$ agents at least onc
 \noindent Since $\Nb^{\rm used}$ grows like $(NT)^{1/3}$ until most of the window is visited, the
 share is $O(d/(NT)^{1/3})$. Phase~1 matters only when $d$ is comparable with $(NT)^{1/3}$. E24
 measures under 2\% at $d\le100$, and compressing Phase~1 saves at most that share.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{fig24_phase1_share.png}
+\caption{Empirical check of Proposition~\ref{prop:share} (E24). Left: Phase-1 traffic grows linearly in $d$, Phase-2 traffic is far larger for every $d\le200$, server and serverless. Middle: the Phase-1 share falls as $NT$ grows, as $O(d/(NT)^{1/3})$ predicts. Right: quantising the Phase-1 upload saves at most 0.06--0.38\% of all bits, while 2-bit rounding costs 37--50\% regret.}
+\label{fig:e24}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{fig26_compression.png}
+\caption{Compression on each phase (E26, $N=8$, 20 paired trials): regret relative to the exact protocol against total bits on the wire. Compressing Phase~1 (circles) never helps: a noisier frozen direction makes Phase~2 sync more. The only free saving is sending fewer Phase-2 bin messages (top-25\% bins with error feedback: 26--29\% fewer bits).}
+\label{fig:e26}
+\end{figure}
 
 \section{Without a server: the relay version (sketch)}\label{sec:dec}
 
@@ -352,6 +383,27 @@ $\sqrt N$ inside the log-width argument.
 excess of $+1.5\%$ ($D=1$) to $+9\%$ ($D=15$) that grows sublinearly in $D$, is almost flat in $T$
 (log--log slope $0.13$--$0.14$ against $1/3$), and is 60--150$\times$ below $ND\Nb$. This suggests the bound is loose: plausibly only Phase-1 delays and the first visits to
 each bin pay the diameter.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{fig23_server_vs_serverless.png}
+\caption{Theorem~\ref{thm:relay} against measurement (E23, $N=16$, 20 paired trials). Left: extra regret without a server grows sublinearly in the diameter $D$ (dashed: best fit $\propto D$). Middle: the excess is almost flat in $NT$ (slope 0.13--0.14 against the $1/3$ the bound predicts). Right: as a fraction of the server's regret it falls with the horizon.}
+\label{fig:e23}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{fig28_dec_coupling.png}
+\caption{Exploration length and agreement on graphs (E28, $N=16$, 10 paired trials). From left: regret against the Phase-1 length $T_0$ on the ring and path; the best $T_0$ barely moves with $D$; Phase-1 communication against regret; and the regret cost of agents freezing different estimates, which one agreement pass at the freeze removes.}
+\label{fig:e28}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{fig28b_stop_rules.png}
+\caption{Adaptive stopping on graphs (E28). ``Stop when any agent is stable'' costs 1.4--2.2$\times$ the regret of a fixed $T_0$; ``stop when all are'' is close to it but is modelled without its $\ge D$-round detection delay.}
+\label{fig:e28b}
+\end{figure}
 
 \section{The regret--communication trade-off (notes and conjecture)}\label{sec:tradeoff}
 
@@ -385,15 +437,22 @@ which is exactly what our fixed-schedule experiments (E27) find breaks naive bat
 context-driven availability) with an upper bound in terms of $C$; (b) a matching lower bound that
 formalises the window heuristic. Neither is done here.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{fig27_comm_tradeoff.png}
+\caption{The regret--communication frontier (E27, $N=8$, 20 paired trials). Left and middle: regret relative to per-round sync against the number of Phase-2 sync rounds for periodic, event-triggered and fixed batched schedules. The event trigger reaches $\times1.004$ with about 130 syncs; periodic sync with 99 syncs is at $\times1.37$--$1.45$. Right: with the minimax (Perchet) grid, 8 batches still leave $\times2.1$ at every horizon, so $O(\log\log NT)$ batches do not suffice for these agents.}
+\label{fig:e27}
+\end{figure}
+
 \section*{Where the experiments are}
 \begin{itemize}[nosep]
-\item Theorem~\ref{thm:lower}/\ref{thm:upper} in practice: E22 (\texttt{fig22}). One agent at
+\item Theorem~\ref{thm:lower}/\ref{thm:upper} in practice: E22 (Figure~\ref{fig:e22}). One agent at
 $NT$ against $N$ agents at $T$ with the same pooled exploration and bin width.
-\item Theorem~\ref{thm:comm}: E22 part 2 (\texttt{fig22b}), sync rounds and per-bin triggers
+\item Theorem~\ref{thm:comm}: E22 part 2 (Figure~\ref{fig:e22b}), sync rounds and per-bin triggers
 against $\log NT$.
-\item Proposition~\ref{prop:share}: E24 (\texttt{fig24}).
-\item Theorem~\ref{thm:relay}: E23 (\texttt{fig23}).
-\item Section~\ref{sec:tradeoff}: E27 (\texttt{fig27}).
+\item Proposition~\ref{prop:share}: E24 and E26 (Figures~\ref{fig:e24} and~\ref{fig:e26}).
+\item Theorem~\ref{thm:relay}: E23 and E28 (Figures~\ref{fig:e23}, \ref{fig:e28}, \ref{fig:e28b}).
+\item Section~\ref{sec:tradeoff}: E27 (Figure~\ref{fig:e27}).
 \end{itemize}
 
 \end{document}

@@ -14,7 +14,7 @@ single agent and the network see exactly the same statistical problem.  If the
 server setting is "just more data", the regret-vs-total-pulls curves coincide.
 
 Part 2 (claim 1.3): for N = 8 and growing T, count Phase-2 sync rounds of the
-event-triggered server and compare them with Theorem 5's bound
+event-triggered server and compare them with Theorem 12's bound
 N_bins · (1 + log_{1+gamma}(NT)) and with per-round sync (T − T0 rounds).
 
 Writes results/fig22_single_vs_network.{png,pdf}, fig22b_sync_rounds.{png,pdf},
@@ -125,7 +125,7 @@ def plot(res):
     fig, (a, b) = plt.subplots(1, 2, figsize=(10, 3.6))
     a.errorbar(NT, syncs[:, 0], syncs[:, 1], marker="o", color=COLOR["event"],
                label="event-triggered: measured sync rounds")
-    a.plot(NT, bound, "--", color=COLOR["event"], label="Thm 5 bound  N_bins(1+log₁₊ᵧ NT)")
+    a.plot(NT, bound, "--", color=COLOR["event"], label="Thm 12 bound  N_bins(1+log₁₊ᵧ NT)")
     a.plot(NT, per_round[:, 0], color=COLOR["sync1"], marker="s", ms=4,
            label="sync every round (T − T0)")
     a.set(xscale="log", yscale="log", xlabel="N·T (N = 8)", ylabel="Phase-2 communication rounds",
@@ -136,7 +136,7 @@ def plot(res):
     x = np.log(NT) / np.log(1 + GAMMA)
     b.plot(x, 1 + x, "--", color="#8a8984", label="bound 1 + log₁₊ᵧ(NT)")
     b.set(xlabel="log₁₊ᵧ(NT)", ylabel="syncs triggered by the busiest bin",
-          title="Per-bin syncs (Theorem 5)")
+          title="Per-bin syncs (Theorem 12)")
     b.legend()
     fig.tight_layout()
     save(fig, "fig22b_sync_rounds")
@@ -162,7 +162,7 @@ def plot(res):
                      "sync rounds"], rows)
     with open(f"{OUT}/claims_e22.md", "a") as fh:
         fh.write("\n## Sync rounds vs horizon (N = 8, event-triggered, γ = 0.5)\n\n"
-                 "| N·T | N_bins | measured syncs | Thm 5 bound | per-round sync | "
+                 "| N·T | N_bins | measured syncs | Thm 12 bound | per-round sync | "
                  "max syncs by one bin | per-bin bound |\n|---|---|---|---|---|---|---|\n")
         fh.write("\n".join("| " + " | ".join(r) + " |" for r in rows2) + "\n")
 
