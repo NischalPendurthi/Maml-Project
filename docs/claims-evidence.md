@@ -17,12 +17,12 @@ the claim. Proofs: [`docs/proofs/server.pdf`](proofs/server.pdf). Tables: `resul
 | 1.1 | With a server, N agents × T rounds ≡ one agent × N·T rounds | E22 | **Confirmed** |
 | 1.2 | …and this is provably the best possible | Thm 3 + Thm 9 | **Proved** (rate in N, T) |
 | 1.3 | Event-triggered sync reaches the rate with O(log NT) syncs | Thm 12 + E22b | **Confirmed**, but the bound is 60–75× loose |
-| 1.4 | Without a server you pay an extra N·D·(NT)^{1/3} | Thm 13 (sketch) + E23 | **Bound holds but looks loose**; the real cost is far smaller |
-| 2.1 | Phase 1 is a negligible share of communication; compressing it buys nothing | Prop 14 + E24 | **Confirmed** |
-| 2.2 | In multi-index bandits Phase 1 becomes expensive | E25 | *pending* |
-| 3.1 | Quantisation / top-k / rand-k, measured cleanly | E26 | *pending* |
-| 3.2 | The regret–communication trade-off is a research path | E27 + §6 of the proofs | *pending* |
-| 4 | Without a server, exploration length and communication are coupled | E28 | *pending* |
+| 1.4 | Without a server you pay an extra N·D·(NT)^{1/3} | Thm 16 (sketch) + E23 | **Bound holds but looks loose**; the real cost is far smaller |
+| 2.1 | Phase 1 is a negligible share of communication; compressing it buys nothing | Prop 15 + E24 | **Confirmed** |
+| 2.2 | In multi-index bandits Phase 1 becomes expensive | E25 | **Confirmed at large d** (11% at d = 100), with a real communication–accuracy trade-off |
+| 3.1 | Quantisation / top-k / rand-k, measured cleanly | E26 | **Phase-1 compression never helps; top-k Phase-2 bins with error feedback saves 26–29% for free** |
+| 3.2 | The regret–communication trade-off is a research path | E27 + §6 of the proofs | **Yes, but not via batching**: *when* to sync matters more than *how often* |
+| 4 | Without a server, exploration length and communication are coupled | E28 | **Partly**: the coupling is through *agreement*, not through the best length |
 
 ---
 
@@ -97,7 +97,7 @@ Setup: N = 16, with the same engine, seeds, T0 and γ for both versions.
 - **The bound term overstates it 60–150×.**
 - **The excess is nearly flat in T.** The log-log slope is 0.13–0.14 against the predicted
   0.33, so the relative cost *falls*, from +11% to +4.5% on the ring as N·T goes 40k → 640k.
-- **Reading.** The additive N·D·N_bins in Theorem 13 is a valid upper bound but very likely not
+- **Reading.** The additive N·D·N_bins in Theorem 16 is a valid upper bound but very likely not
   the truth. The diameter seems to cost only in Phase-1 delay and first visits to bins.
 - **Open question.** Prove a tighter delay term, or a lower bound showing what is necessary.
   This is the most concrete theory question in the serverless direction.
@@ -108,7 +108,7 @@ Setup: N = 16, with the same engine, seeds, T0 and γ for both versions.
 
 ## Point 2: Phase-1 communication
 
-### 2.1 Phase 1 is negligible (Prop 14; E24, [fig24](../results/fig24_phase1_share.png), [table](../results/claims_e24.md))
+### 2.1 Phase 1 is negligible (Prop 15; E24, [fig24](../results/fig24_phase1_share.png), [table](../results/claims_e24.md))
 
 **Phase-1 share of all scalars** (N = 16, N·T = 160k):
 
@@ -118,7 +118,7 @@ Setup: N = 16, with the same engine, seeds, T0 and γ for both versions.
 | serverless (ring) | 0.26% | 0.33% | 0.43% | 0.75% | 0.97% | 1.59% |
 
 - The share also **shrinks with the horizon**: at d = 10 it falls from 0.79% at N·T = 10k to
-  0.08% at 640k. This matches Proposition 14's O(d / (NT)^{1/3}).
+  0.08% at 640k. This matches Proposition 15's O(d / (NT)^{1/3}).
 
 **Quantising the Phase-1 upload:**
 - **Direct saving:** at most **0.06% (d = 10) to 0.38% (d = 100)** of total bits, even at
@@ -129,15 +129,184 @@ Setup: N = 16, with the same engine, seeds, T0 and γ for both versions.
 **Verdict.** Phase-1 compression cannot matter for the single-index model, and a rate argument
 backs this. Communication work belongs in Phase 2.
 
-### 2.2 Multi-index (E25): *pending*
+### 2.2 Multi-index bandits (E25, [fig25](../results/fig25_multiindex.png), [table](../results/claims_e25.md))
+
+New code in `src/multiindex/`:
+- **Model:** y = g(Bᵀx) + noise, with B ∈ R^{d×m}.
+- **Phase 1:** second-order Stein (a d×d matrix); B̂ = its top-m eigenvectors.
+- **Phase 2:** sleeping UCB on m-dimensional cubes of side 4·(NT)^{-1/(m+2)}.
+- The constant 4 was calibrated once. With constant 1, an m = 2 grid has 10⁴ cubes, more than a
+  run can visit.
+
+**Estimator.** The subspace error decays like n^{-0.49} (bowl) and n^{-0.48} (mixed), the
+expected n^{-1/2}.
+
+**Collaboration still works** (network regret exponent in N, m = 2):
+
+| setting | Fed-ZoomMIB | Phase-1 sharing only | single-index Fed-ZoomSIB on the same problem |
+|---|---|---|---|
+| bowl, m = 2 | **0.45** | 1.04 | 0.90 (4.1× more regret at N = 8) |
+| mixed, m = 2 | **0.52** | 0.94 | 0.94 (5.2× more regret at N = 8) |
+
+**Bonus: the μ\* = 0 case.** `mixed` with m = 1 is g(z) = cos 2z.
+- It is even, so μ\* = E[g'] = 0, and first-order Stein (ZoomSIB) cannot find the direction:
+  8 384 regret for one agent.
+- Second-order Stein finds it: **1 653 regret, 5× less**.
+- Dey et al. list "requires μ\* ≠ 0; can an alternative technique be developed?" as open.
+- This is one link and no theory, but it is a lead worth showing Prof. Ghosh.
+
+**Does Phase 1 stop being negligible?** Phase-1 share of all scalars (N = 8, m = 2):
+
+| d | 10 | 20 | 50 | 100 |
+|---|---|---|---|---|
+| exact matrix pooling, d(d+1)/2 per agent | 0.20% | 0.61% | 3.2% | **11.4%** |
+| projection averaging, d·m per agent | 0.11% | 0.21% | 0.48% | 0.97% |
+| single-index (vector), for reference | 0.19% | 0.34% | 0.82% | 1.31% |
+
+**There is a real communication–accuracy trade-off between Phase-1 methods**, which never
+happens in the single-index model:
+- **Projection averaging** sends 7× less than exact pooling at d = 50.
+  - It costs nothing on `bowl` (large eigengap).
+  - It costs **+22% regret on `mixed`** (small eigengap).
+- **Federated power iteration** with 2 rounds fails at d = 50: subspace error 0.42–0.52 and
+  +40–94% regret. 5 rounds match exact pooling. The number of rounds needed is set by the
+  eigengap, as the theory predicts.
+
+**Verdict.** In multi-index bandits Phase 1 is a genuine federated estimation problem: a
+nonlinear target, cost growing like d², and an eigengap-dependent trade-off. This is where
+Phase-1 communication research belongs.
 
 ---
 
-## Point 3: compression and the trade-off: *pending (E26, E27)*
+## Point 3: compression and the regret–communication trade-off
 
-## Point 4: serverless exploration–communication coupling: *pending (E28)*
+### 3.1 Compression, measured cleanly (E26, [fig26](../results/fig26_compression.png), [table](../results/claims_e26.md))
+
+N = 8, T = 10 000, one change at a time, 20 paired trials. Bits are counted on the wire.
+
+| what is compressed | regret vs exact | total bits saved |
+|---|---|---|
+| Phase 1, 8-bit | same | +0.6% / −0.7% |
+| Phase 1, 2-bit | +50% | **−10%** (more bits) |
+| Phase 1, top-k / rand-k (25–50%) | +80% to +620% | **−17% to −148%** |
+| Phase 2, 16-bit sums | same | +14–15% |
+| Phase 2, 8-bit sums | +1–3% | +5–15% |
+| **Phase 2, top-25% bins + error feedback** | **+0.2–0.4%** | **+26–29%** |
+| Phase 2, top-25% bins, no error feedback | +1.6–3% | +44–46% |
+| Phase 2, rand-50% bins | +0.3–10% | −9% to −19% |
+
+1. **Compressing Phase 1 backfires.** A noisier frozen direction makes Phase 2 sync more and
+   regret more, so total bits *rise*.
+2. **Quantising Phase-2 values tops out around 15%.** Each bin message is (index, count, sum),
+   and only the sum can be rounded; counts must stay exact.
+3. **The lever is sending fewer bin messages.**
+   - Top-k by "news ratio" with error feedback is free: unsent bins wait for a later sync.
+   - Rand-k loses because the bins it skips keep firing the trigger.
+
+### 3.2 The regret–communication frontier (E27, [fig27](../results/fig27_comm_tradeoff.png), [table](../results/claims_e27.md))
+
+Same N and T, regret ÷ sync every round:
+
+| schedule | sync rounds | quadratic | zigzag |
+|---|---|---|---|
+| every round | 9 880 | 1.00 | 1.00 |
+| periodic every 100 | 99 | 1.45 | 1.37 |
+| **event-triggered γ = 0.5** | **130–162** | **1.004** | **1.003** |
+| event-triggered γ = 1 | 7–10 | 1.52 | 1.54 |
+| geometric grid, 8 batches | 8 | 1.48 | 1.28 |
+| minimax (Perchet) grid, 8 batches | 8 | 2.09 | 1.64 |
+
+1. **When to sync matters far more than how often.**
+   - Periodic sync with 99 rounds loses 37–45%.
+   - The event trigger with 130 rounds loses 0.4%.
+   - Data-driven timing is worth an order of magnitude in communication.
+2. **Fixed batch schedules do not reach the optimum.** Even at 8 batches the minimax grid is at
+   2.1× and the geometric grid at 1.3–1.5×. M\* is above 8 at every horizon (N·T = 20k–320k),
+   against log log(NT) ≈ 2.3–2.5. The O(log log T) result for batched Lipschitz bandits does
+   **not** transfer to our UCB agents:
+   - between syncs, every agent re-explores the same new bins;
+   - the context-driven (sleeping) arms prevent the elimination schedules those results rely on.
+3. **The cliff between γ = 0.5 and γ = 1 is a mechanism effect.** A first pull into an empty bin
+   fires the trigger only if 1 > γ, so for γ ≥ 1 newly found bins are not shared promptly.
+   - Sharing *new bins* promptly is what matters.
+   - A trigger that does this, but is lazier on known bins, could cut the ~130 syncs further.
+     That is an open design question.
+
+**Verdict on 3.2.** The trade-off is a real research path, in this form:
+- *What is the minimum number of syncs for the optimal rate when arms are context-driven?*
+- Both sides are open:
+  - the current upper bound is 60–75× loose (claim 1.3);
+  - naive batching fails (above).
+- The proofs document (§6) states a heuristic lower bound and a conjecture. Neither is proved.
 
 ---
+
+## Point 4: serverless exploration–communication coupling (E28, [fig28](../results/fig28_dec_coupling.png), [fig28b](../results/fig28b_stop_rules.png), [table](../results/claims_e28.md))
+
+Setup: N = 16, Phase 2 fixed (event flooding). We sweep T0 ∈ {15, 30, 60, 120, 240} for 5
+Phase-1 methods on 5 graphs, with 10 paired trials.
+
+**(a) Does the best exploration length depend on the graph?** Barely.
+- T0\* = 60 (the server's) for every method on every graph.
+- The one exception is 1-step consensus on the path, where T0\* = 120.
+- On this ×2 grid, the claim that "the optimal length is a function of D" is **not supported**.
+  A finer grid might find small shifts.
+
+**(b) What does the graph cost, then?** *Agreement.* Regret ÷ best server at T0\*:
+
+| graph (D) | tree (exact) | flooding | consensus 1 step | consensus 5 steps | consensus 1 + one agreement pass |
+|---|---|---|---|---|---|
+| hypercube (4) | 1.04 | 1.06 | 1.07 | 1.04 | 1.04 |
+| ring (8) | 1.08 | 1.11 | **1.25** | 1.11 | 1.08 |
+| path (15) | 1.09 | 1.15 | **1.34** | 1.16 | 1.09 |
+
+- Regret grows steeply once the frozen estimates disagree by more than about 10⁻² (fig28,
+  panel D).
+- **One flooding pass at the freeze, so that all agents adopt the same θ̂, removes the whole
+  penalty.** The pass itself adds only about 2.8k scalars on the ring (24.2k against 21.4k for
+  consensus alone), and the total is about 14% of flooding's Phase-1 traffic.
+- Tree pooling is still cheapest: about 600 scalars, exact.
+
+**(c) Adaptive stopping on graphs is the weak point.** Network regret, with fixed T0\* for
+comparison:
+
+| graph | stop when *any* agent is stable | stop when *all* are | fixed T0\* |
+|---|---|---|---|
+| ring, flooding | 10 882 ± 3 371 | 7 743 | 7 617 |
+| ring, consensus 1 | 18 523 ± 7 366 | 8 740 | 8 572 |
+| path, consensus 1 | 16 761 ± 7 189 | 9 518 | 9 150 |
+
+- "Any" is 1.4–2.2× worse and highly variable.
+- The *server's* adaptive rule (9 487, against 6 848 fixed) is also bad.
+- **Caveat:** the engine freezes instantly under "all". A real network needs at least D more
+  rounds to learn that everyone is stable, so "all" is optimistic here.
+
+**Verdict on 4.** The coupling is real, but it is about agents freezing the *same* estimate,
+not about how long they explore. The research question this supports is:
+
+> design a decentralised stopping rule that ends with agreement, with a regret guarantee.
+
+- Both naive rules fail ("any" in regret, "all" in its unmodelled delay).
+- A fixed length plus one agreement pass works but needs T0 known in advance.
+
+---
+
+## What this means for the project
+
+1. **The server single-index result is closed in rate** (Theorems 3 and 9).
+   - Keep it as the base theorem.
+   - Its open part is communication: the sync bound is 60–75× loose, and the optimal number of
+     syncs with context-driven arms is unknown.
+2. **The serverless result is the stronger paper.**
+   - Prove Theorem 16 properly.
+   - Attack the delay term: the measured cost is 60–150× below it and nearly flat in T.
+   - Add the agreement/stopping question from Point 4.
+3. **Phase-1 compression is a dead end for single-index** (E24, E26).
+   - It becomes a real problem only for **multi-index**, where projection averaging and power
+     iteration show an eigengap-dependent trade-off (E25).
+4. **Leads to discuss with Prof. Ghosh:**
+   - second-order Stein solves a μ\* = 0 instance that ZoomSIB cannot (E25);
+   - the d-dependence remark in the proofs (Remark 10).
 
 ## Reproduce
 
@@ -145,10 +314,10 @@ backs this. Communication work belongs in Phase 2.
 python3 experiments/exp22_single_vs_network.py      # ~30 min
 python3 experiments/exp23_server_vs_serverless_D.py # ~50 min
 python3 experiments/exp24_phase1_share.py           # ~15 min
-python3 experiments/exp25_multiindex.py
-python3 experiments/exp26_compression.py
-python3 experiments/exp27_comm_tradeoff.py
-python3 experiments/exp28_dec_explore_coupling.py   # ~4 h (10 trials)
+python3 experiments/exp25_multiindex.py           # ~20 min
+python3 experiments/exp26_compression.py          # ~15 min
+python3 experiments/exp27_comm_tradeoff.py        # ~35 min
+python3 experiments/exp28_dec_explore_coupling.py # ~1 h (10 trials)
 ```
 
 Every script also accepts `--quick`, which writes to `results/quick/` in a few minutes.

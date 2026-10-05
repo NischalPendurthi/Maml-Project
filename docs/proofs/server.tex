@@ -298,8 +298,9 @@ $3N\min(N,\Nb)(T-T_0)$.
 \end{corollary}
 
 \begin{remark}[The bound is loose in practice]
-E22 measures about 70--120 sync rounds at $NT=10^4$--$4\cdot10^4$, against a bound in the
-thousands. The busiest bin triggers about 3 syncs, against $1+\log_{1+\gamma}(NT)\approx25$.
+E22 measures 61--213 sync rounds for $NT=10^4$--$3.2\cdot10^5$ ($N=8$), against a bound of
+3\,600--15\,600, i.e.\ 60--75$\times$ lower. The busiest bin triggers about 3 syncs, against
+$1+\log_{1+\gamma}(NT)\approx24$--$32$.
 The worst case of Theorem~\ref{thm:comm} assumes every bin is pulled heavily. Sleeping UCB
 concentrates pulls on a few near-optimal bins, and most bins trigger at most once. A
 gap-dependent communication bound is open (Section~\ref{sec:tradeoff}).
@@ -347,9 +348,9 @@ over each agent's \emph{view}, which is a union of $N$ per-agent prefixes; this 
 $\sqrt N$ inside the log-width argument.
 \end{proof}
 
-\noindent\textbf{Open.} Whether the additive $ND\Nb$ is necessary is unknown. E23 measures an
-excess that grows sublinearly in $D$, is almost flat in $T$, and is about $100\times$ below
-$ND\Nb$. This suggests the bound is loose: plausibly only Phase-1 delays and the first visits to
+\noindent\textbf{Open.} Whether the additive $ND\Nb$ is necessary is unknown. E23 ($N=16$) measures an
+excess of $+1.5\%$ ($D=1$) to $+9\%$ ($D=15$) that grows sublinearly in $D$, is almost flat in $T$
+(log--log slope $0.13$--$0.14$ against $1/3$), and is 60--150$\times$ below $ND\Nb$. This suggests the bound is loose: plausibly only Phase-1 delays and the first visits to
 each bin pay the diameter.
 
 \section{The regret--communication trade-off (notes and conjecture)}\label{sec:tradeoff}

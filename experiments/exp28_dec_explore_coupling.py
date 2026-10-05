@@ -128,7 +128,7 @@ def plot(res):
                label=METHODS[key][3])
     b.axhline(s_t0, color=COLOR["server"], lw=2, label=f"server T0* = {s_t0}")
     b.set(yscale="log", xlabel="graph diameter D", ylabel="best Phase-1 length T0*",
-          title="Optimal exploration length depends on the graph")
+          title="Best Phase-1 length vs diameter")
     b.set_yticks(T0S, [str(t) for t in T0S])
     b.legend(fontsize=6.5)
 
@@ -148,11 +148,12 @@ def plot(res):
             for t in T0S:
                 r = cell[f"{key}@{t}"]
                 ref = cell[f"tree@{t}"]["R"].mean()     # same T0, exact agreement
-                d.scatter(r["disagree"].mean(), r["R"].mean() / ref, color=GCOLOR[g], s=14)
+                # complete graph: disagreement ~1e-16 (exact); clip so the axis stays readable
+                d.scatter(max(r["disagree"].mean(), 1e-4), r["R"].mean() / ref, color=GCOLOR[g], s=14)
     for g in GRAPHS:
         d.scatter([], [], color=GCOLOR[g], label=g)
     d.axhline(1, color="#8a8984", lw=0.8)
-    d.set(xscale="log", xlabel="disagreement of frozen θ̂_i (mean ℓ1 to the mean)",
+    d.set(xscale="log", xlabel="disagreement of frozen θ̂_i (mean ℓ1 to the mean; floor 1e-4)",
           ylabel="regret ÷ tree at the same T0", title="Cost of freezing different estimates")
     d.legend(fontsize=6.5)
     fig.tight_layout()
