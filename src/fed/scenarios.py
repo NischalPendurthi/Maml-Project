@@ -76,7 +76,15 @@ class ConceptEnv(SIBEnv):
 
 def make_scenario_envs(scenario, N, d, K, link, sigma=0.1, seed=0, run_seed=0,
                        index_scale=1.0, strength=None):
-    s = DEFAULT_STRENGTH[scenario] if strength is None else float(strength)
+    # covariate: `strength` may also be a list of N index means, one per agent
+    positions = None
+    if scenario == "covariate" and strength is not None and np.ndim(strength) == 1:
+        positions = [float(c) for c in strength]
+        if len(positions) != N:
+            raise ValueError(f"{len(positions)} index means for {N} agents")
+        s = None
+    else:
+        s = DEFAULT_STRENGTH[scenario] if strength is None else float(strength)
     common = dict(d=d, K=K, link=link, sigma=sigma, seed=seed, index_scale=index_scale)
     envs = []
     for i in range(N):
@@ -87,7 +95,7 @@ def make_scenario_envs(scenario, N, d, K, link, sigma=0.1, seed=0, run_seed=0,
             p = 1.0 - s * i / max(N - 1, 1)
             e = ParticipatingEnv(run_seed=rs, p_active=p, active_seed=[run_seed, i, 7], **common)
         elif scenario == "covariate":
-            c = -s + 2 * s * i / max(N - 1, 1)
+            c = positions[i] if positions is not None else -s + 2 * s * i / max(N - 1, 1)
             e = ShiftedEnv(run_seed=rs, index_mean=c, **common)
         elif scenario == "concept":
             e = ConceptEnv(run_seed=rs, rho=s, agent_seed=[seed, i, 11], **common)

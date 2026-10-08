@@ -51,17 +51,25 @@ def make_fed_envs(N, d, K, link, sigma=0.1, seed=0, run_seed=0, index_scale=1.0,
                               index_scale, strength)
 
 
-def build_fed(config, envs, T, rng):
-    kw = dict(config)
-    engine = kw.pop("engine", "fed")
+def engine_class(engine):
     if engine == "dec":                       # serverless engine, src/dec/
         from ..dec.engine import DecTwoPhase
-        cls = DecTwoPhase
-    elif engine == "mib":                     # multi-index engine, src/multiindex/
+        return DecTwoPhase
+    if engine == "mib":                       # multi-index engine, src/multiindex/
         from ..multiindex.engine import FedZoomMIB
-        cls = FedZoomMIB
-    else:
-        cls = ENGINES[engine]
+        return FedZoomMIB
+    if engine == "indep":                     # N independent copies of any engine
+        from .independent import IndependentEngines
+        return IndependentEngines
+    if engine == "random":                    # uniform arm choice: the no-learning floor
+        from .independent import RandomAgents
+        return RandomAgents
+    return ENGINES[engine]
+
+
+def build_fed(config, envs, T, rng):
+    kw = dict(config)
+    cls = engine_class(kw.pop("engine", "fed"))
     kw.pop("label", None)
     kw.pop("style", None)
     env = envs[0]

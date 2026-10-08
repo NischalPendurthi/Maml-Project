@@ -5,11 +5,14 @@
     median     coordinate-wise median (robust aggregation)
     quantized  compressed exact upload
     compressed exact upload through any compressor (quant / top-k / rand-k)
+    aligned    sign-invariant: flip each agent's estimate to a pilot, then sum
+    outer      sign-invariant, unbiased: split-sample outer products, top eigenvector
     fl         ANY federated-learning method from src/fed/fl/, on the Stein or LS objective
 """
 
 from .base import Phase1Strategy
 from .compressed import CompressedStein
+from .signinv import AlignedStein, OuterStein
 from .exact import ExactStein
 from .fl import FLPool
 from .median import CoordinateMedian
@@ -17,7 +20,8 @@ from .normavg import NormalizedAverage
 from .quantized import QuantizedStein
 
 PHASE1 = {cls.name: cls for cls in (ExactStein, NormalizedAverage, CoordinateMedian,
-                                    QuantizedStein, FLPool, CompressedStein)}
+                                    QuantizedStein, FLPool, CompressedStein,
+                                    AlignedStein, OuterStein)}
 
 
 def make_phase1(spec, rng, **kw):
@@ -28,4 +32,5 @@ def make_phase1(spec, rng, **kw):
 
 
 __all__ = ["PHASE1", "make_phase1", "Phase1Strategy", "ExactStein", "NormalizedAverage",
-           "CoordinateMedian", "QuantizedStein", "FLPool", "CompressedStein"]
+           "CoordinateMedian", "QuantizedStein", "FLPool", "CompressedStein",
+           "AlignedStein", "OuterStein"]
