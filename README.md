@@ -597,8 +597,12 @@ E10/E11/E14.
 Figures are written to `results/` as `.png`; benchmark tables as `results/fl_*.md` and
 `results/dec_*.md`.  Long runs log to `results/logs/` (gitignored).
 
-The reference papers live in `papers/` (`python experiments/fetch_papers.py` re-downloads
-them). Build the pitch deck with `cd slides/pitch && pdflatex main.tex`.
+The reference papers live in `papers/`, grouped by topic into five subfolders
+(single-index bandits; single-agent foundations; federated bandits with a server;
+decentralised bandits on a graph; beyond homogeneous agents). Each subfolder has a
+`00-summary.pdf` describing every paper in it and its open problems
+(`python3 papers/make_summaries.py` regenerates the sources;
+`python experiments/fetch_papers.py` re-downloads the arXiv PDFs). Build the pitch deck with `cd slides/pitch && pdflatex main.tex`.
 
 ---
 
@@ -640,7 +644,7 @@ tests/                   test_fedzoomsib.py  test_fl.py  test_dec.py
 docs/                    report-server-vs-serverless.md
 results/                 figures, benchmark tables, tuned hyperparameters (caches gitignored)
 slides/pitch/            5-minute pitch deck (LaTeX)
-papers/                  reference PDFs
+papers/                  reference PDFs in 5 topic folders, each with 00-summary.pdf
 viz/                     interactive knowledge map of the literature
 ```
 

@@ -1,0 +1,90 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\setlist{nosep,leftmargin=1.4em}
+\newcommand{\stated}{\textcolor{green!40!black}{\textbf{Stated by the authors:}}}
+\newcommand{\ours}{\textcolor{orange!80!black}{\textbf{Our reading:}}}
+\usepackage{xurl}
+\newcommand{\file}[1]{\url{#1}}
+\sloppy
+\setlength{\parindent}{0pt}\setlength{\parskip}{4pt}
+
+\title{Beyond Homogeneous Agents\\[2pt]\large Heterogeneity, incentives, adversaries and collisions}
+\author{CS6007 project notes}
+\date{October 2026}
+\begin{document}
+\maketitle
+\textbf{What this folder is about.} When agents are identical and cooperative, a network
+of $N$ agents is ``one agent with $N$ times the data'', which we proved for our setting. The
+papers here study what makes multi-agent bandits \emph{genuinely different}: agents that differ
+(heterogeneous or clustered models), agents with their own interests (incentives), agents that
+lie (malicious recommendations), and agents that compete for the same arms (collisions). This is
+the folder to read for new research directions; E29 (heterogeneous slopes) belongs here.
+\tableofcontents
+\bigskip
+\section{Shi \& Shen (AAAI 2021): federated multi-armed bandits}
+\textbf{C. Shi, C. Shen. Federated Multi-Armed Bandits. AAAI 2021 (arXiv:2101.12204).}\\ File: \file{2101.12204v2.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item Clients have \emph{heterogeneous local} bandit models; the goal is the \emph{global} model. In the approximate model, local models are random realisations of the global one, so the global model is uncertain even if local models were known.\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item \textbf{Fed2-UCB}: a ``double UCB'' accounting for both arm-sampling and client-sampling uncertainty, admitting clients gradually.\item \textbf{Fed1-UCB} for an exact model where the global model is the average of local ones.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item $O(\log T)$ regret for the approximate model while controlling communication; admitting clients gradually is critical for that rate.\item An order-optimal exact-model result that trades convergence time against the number of clients.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item A clean example of a \emph{new source of uncertainty} that exists only with many agents (client sampling): the kind of contribution we are looking for.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \stated{} The risk when synchronisation breaks is noted as ``an interesting research problem for future investigation''.\item \ours{} Multi-armed only; contextual or structured (e.g.\ single-index) versions with heterogeneous clients are open.\end{itemize}
+\section{Ghosh, Chung, Yin \& Ramchandran (NeurIPS 2020): clustered federated learning (IFCA)}
+\textbf{A. Ghosh, J. Chung, D. Yin, K. Ramchandran. An Efficient Framework for Clustered Federated Learning. NeurIPS 2020 (arXiv:2006.04088).}\\ File: \file{2006.04088v2.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item Federated learning (supervised, not bandits) where users belong to unknown clusters, each with its own model.\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item \textbf{IFCA}: alternately estimate each user's cluster identity and update each cluster's model by gradient descent.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item Convergence guarantees for linear models with squared loss and for strongly convex smooth losses, given good initialisation; a discussion of optimal statistical error.\item In practice, random initialisation with restarts works, including beyond the convex regime.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item Written by our instructor. The natural template for \emph{clustered single-index bandits}: agents with different $\theta^*_i$, where naive pooling hurts (our E12).\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \stated{} Weakly convex and non-convex losses.\item \stated{} Stochastic gradients on the workers.\item \stated{} Only a small subset of devices participating.\item \ours{} Not a bandit paper: clustering while \emph{also} exploring (online, with partial feedback) is open.\end{itemize}
+\section{Wei, Li, Xu \& Wang (2023): incentivised communication for federated bandits}
+\textbf{Z. Wei, C. Li, H. Xu, H. Wang. Incentivized Communication for Federated Bandits. arXiv:2309.11702, 2023.}\\ File: \file{2309.11702v2.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item Federated linear contextual bandits where clients are \emph{self-interested} and share data only if it benefits them; the server must pay incentives.\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item \textbf{Inc-FedUCB}: a general framework with two implementations, data incentives and monetary incentives.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item Customisable near-optimal regret with guarantees on both communication and payment costs; experiments across environments.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item A multi-agent question with no single-agent counterpart. Exploration in our Phase 1 is a pure cost to the explorer, so the same free-riding issue applies.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \stated{} Clients currently report their costs truthfully; with strategic misreporting a \textbf{truthful incentive mechanism} is needed.\end{itemize}
+\section{Vial, Shakkottai \& Srikant (2021): robust multi-agent bandits}
+\textbf{D. Vial, S. Shakkottai, R. Srikant. Robust Multi-Agent Multi-Armed Bandits. arXiv:2007.03812, 2020 (v3 2021).}\\ File: \file{2007.03812v3.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item $n$ honest and $m$ malicious agents; honest agents recommend their best-arm estimates, malicious ones recommend arbitrary arms.\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item Shows existing collaborative algorithms lose all benefit with even \emph{one} malicious agent.\item Proposes \textbf{blocking}: honest agents learn who is malicious and reduce communication with them.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item With blocking, collaboration again reduces regret below the single-agent baseline, assuming $m$ is small compared with $K$ and without assumptions on malicious behaviour.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item Shows recommendation-based protocols (like Chawla et al.) are fragile; any relay of statistics in our protocol has the same vulnerability.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \ours{} Multi-armed only; robustness for contextual or single-index bandits (where malicious agents could send poisoned statistics) is open.\item \ours{} Graph-structured versions exist in later work by the same authors.\end{itemize}
+\section{Proutière \& Wang (2019): optimal multiplayer bandits with collisions (DPE)}
+\textbf{A. Proutière, P.-A. Wang. An Optimal Algorithm for Multiplayer Multi-Armed Bandits. arXiv:1909.13079, 2019.}\\ File: \file{1909.13079v2.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item $M$ players choose among $K$ arms; if several players pick the same arm they \emph{collide} and get nothing; players observe collisions. Not all players know $M$.\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item \textbf{DPE} (Decentralized Parsimonious Exploration): a leader--follower algorithm in which players communicate only through deliberate collisions.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item Regret asymptotically matching the optimal \emph{centralised} algorithm, better than SIC-MMAB.\item The expected number of rounds used for communication is finite.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item A completely different multi-agent problem (competition for arms, communication through actions). Its leader-announced commit time is a template for our Phase-1 agreement problem.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \ours{} Players share the same arm means; player-dependent rewards and the no-sensing (collisions not observed) variant need different ideas.\end{itemize}
+\section{Open problems across this folder}
+\begin{itemize}\item \textbf{Contextual or structured versions} of every idea here are mostly open: heterogeneous clients, clustering, incentives, robustness, all studied for MAB or linear models only.\item \textbf{Clustered online learning} (IFCA while exploring) is open, and fits single-index bandits with different $\theta^*_i$.\item \textbf{Heterogeneous identifiability} (our E29): agents whose own slopes $\mu_i$ differ in sign or vanish can identify $\theta^*$ only together. None of these papers covers it, because none uses an index model.\end{itemize}
+\end{document}

@@ -1,0 +1,52 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\setlist{nosep,leftmargin=1.4em}
+\newcommand{\stated}{\textcolor{green!40!black}{\textbf{Stated by the authors:}}}
+\newcommand{\ours}{\textcolor{orange!80!black}{\textbf{Our reading:}}}
+\usepackage{xurl}
+\newcommand{\file}[1]{\url{#1}}
+\sloppy
+\setlength{\parindent}{0pt}\setlength{\parskip}{4pt}
+
+\title{Federated Bandits with a Server\\[2pt]\large Near-optimal regret with little communication}
+\author{CS6007 project notes}
+\date{October 2026}
+\begin{document}
+\maketitle
+\textbf{What this folder is about.} $M$ agents play the \emph{same} bandit and talk only
+through a central server. The question is how little communication still gives the regret of
+one agent with all the data. These papers define the regret--communication trade-off for linear
+and multi-armed bandits that our server results mirror.
+\tableofcontents
+\bigskip
+\section{Wang, Hu, Chen \& Wang (2019/ICLR 2020): distributed bandit learning}
+\textbf{Y. Wang, J. Hu, X. Chen, L. Wang. Distributed Bandit Learning: Near-Optimal Regret with Efficient Communication. ICLR 2020 (arXiv:1904.06309).}\\ File: \file{1904.06309v2.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item $M$ agents, one server; communication measured as the total amount of transmitted data.\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item \textbf{DEMAB} for multi-armed bandits (distributed elimination).\item \textbf{DELB} for linear bandits with a fixed action set (phased elimination with optimal design).\item \textbf{DisLinUCB} for linear bandits with time-varying action sets: sync when a log-determinant ratio of the Gram matrix crosses a threshold (event-triggered).\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item DEMAB: near-optimal regret with $O(M\log(MK))$ communication, independent of $T$, matching a lower bound up to a log factor.\item DELB: regret $O(d\sqrt{TM}\log)$ with communication $O((Md+d\log\log d)\log T)$.\item DisLinUCB: regret $O(d\sqrt{MT}\log^2T)$ with communication $O(M^{1.5}d^3)$.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item Our event-triggered sync is the per-bin analogue of DisLinUCB's determinant trigger; our Theorem 12 mirrors their counting argument.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \ours{} DisLinUCB's communication is worse in $M$ and $d$ than DELB's; closing that gap for time-varying action sets was left open (addressed by later work).\item \ours{} Communication is counted in transmitted numbers, not bits (Salgia \& Zhao, below, counts bits).\end{itemize}
+\section{Salgia \& Zhao (2022): distributed linear bandits under communication constraints}
+\textbf{S. Salgia, Q. Zhao. Distributed Linear Bandits under Communication Constraints. arXiv:2211.02212, 2022.}\\ File: \file{2211.02212v1.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item Distributed linear bandits with a server; uplink and downlink channels have fixed capacity (bits per use).\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item Information-theoretic \textbf{lower bounds} on the bits needed for sublinear regret.\item \textbf{PLS} (Progressive Learning and Sharing): learn and share the unknown vector one bit at a time.\item A variant for sparse linear bandits.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item PLS is order-optimal in regret using $O(d\log T)$ uplink bits and $O(d(\log M+\log T))$ downlink bits.\item These communication costs match the lower bounds; sparsity improves the trade-off further.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item The model for a \emph{communication lower bound}, which we identified as the theory missing from our server results (our sync bound is 60--75$\times$ loose).\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \ours{} Only a server setting; bit-level lower bounds over graphs are open.\item \ours{} Linear rewards only; nonlinear or unknown-link versions are open.\end{itemize}
+\section{Open problems across this folder}
+\begin{itemize}\item \textbf{Matching communication lower bounds} exist for linear bandits (bits) and MAB (messages), but not for nonparametric or single-index bandits.\item Event-triggered sync is analysed in the worst case; instance-dependent communication bounds are not.\item All agents are identical here; folder 05 covers what changes when they are not.\end{itemize}
+\end{document}

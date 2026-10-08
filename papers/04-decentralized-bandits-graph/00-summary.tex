@@ -1,0 +1,77 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\setlist{nosep,leftmargin=1.4em}
+\newcommand{\stated}{\textcolor{green!40!black}{\textbf{Stated by the authors:}}}
+\newcommand{\ours}{\textcolor{orange!80!black}{\textbf{Our reading:}}}
+\usepackage{xurl}
+\newcommand{\file}[1]{\url{#1}}
+\sloppy
+\setlength{\parindent}{0pt}\setlength{\parskip}{4pt}
+
+\title{Decentralised Bandits on a Graph\\[2pt]\large No server: agents talk only to neighbours}
+\author{CS6007 project notes}
+\date{October 2026}
+\begin{document}
+\maketitle
+\textbf{What this folder is about.} Agents sit on a communication graph and exchange
+information with neighbours. The graph enters regret through quantities such as the diameter,
+spectral gap, clique-cover or independence numbers. Two protocol families appear: \emph{relaying}
+exact information (Kolla et al., Dubey \& Pentland) and \emph{gossip / consensus averaging}
+(Chawla et al., Amani \& Thrampoulidis). Our Paper A lives here.
+\tableofcontents
+\bigskip
+\section{Kolla, Jagannathan \& Gopalan (2016/2018): bandits over a social network}
+\textbf{R. K. Kolla, K. Jagannathan, A. Gopalan. Collaborative Learning of Stochastic Bandits over a Social Network. IEEE/ACM Trans.\ Networking 2018 (arXiv:1602.08886).}\\ File: \file{1602.08886v2.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item Agents on a social network play the same stochastic MAB; each reward is seen instantly by the agent \emph{and its neighbours} (one-hop sharing).\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item Analyses \textbf{UCB-Network} (every agent runs UCB on all observed rewards).\item Defines non-altruistic, individually consistent (NAIC) policies and lower-bounds their regret.\item Proposes a \textbf{dominating-set leader--follower} policy that exploits the network structure.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item An upper bound for UCB-Network with a graph-dependent constant (a combinatorial optimisation), specialised to complete and star graphs.\item A universal network-independent lower bound for reasonable policies, and a graph-dependent one.\item Natural extensions of single-agent policies can perform badly; leader--follower policies on dominating sets do much better.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item An early proof that ``just run the single-agent algorithm on shared data'' is not enough on a graph.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \ours{} Sharing is one-hop and instantaneous: no relaying, no delays, no communication budget.\item \ours{} Gaps remain between the upper and lower bounds on general graphs.\end{itemize}
+\section{Chawla, Sankararaman, Ganesh \& Shakkottai (AISTATS 2020): gossiping insert-eliminate}
+\textbf{R. Chawla, A. Sankararaman, A. Ganesh, S. Shakkottai. The Gossiping Insert-Eliminate Algorithm for Multi-Agent Bandits. AISTATS 2020 (arXiv:2001.05452).}\\ File: \file{2001.05452v4.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item $N$ agents on an arbitrary connected graph solve the same MAB; pairwise gossip with a communication budget.\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item Each agent plays only a small \emph{subset} of arms; agents gossip only \textbf{arm IDs} (recommendations), not samples, and update their subsets (insert/eliminate).\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item If agents communicate $\Omega(\log T)$ times, every agent's regret is about $N$ times smaller than without collaboration.\item Communication constraints only affect a second-order term, with explicit regret--communication trade-off bounds.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item A clear example of redesigning \emph{what} is communicated (IDs, $O(\log K)$ bits) rather than federating an existing algorithm.\item Suggests a ``recommend-then-pull'' variant for bins in our Phase 2.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \ours{} Relies on all agents sharing the same best arm; heterogeneous agents or malicious recommenders break it (see Vial et al., folder 05).\item \ours{} Multi-armed only; contextual or structured arms are not covered.\end{itemize}
+\section{Amani \& Thrampoulidis (AAAI 2021): decentralised linear bandits (DLUCB)}
+\textbf{S. Amani, C. Thrampoulidis. Decentralized Multi-Agent Linear Bandits with Safety Constraints. AAAI 2021 (arXiv:2012.00314).}\\ File: \file{arxiv-2012.00314.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item $N$ agents on an arbitrary fixed graph; linear bandit; gossip through a doubly stochastic communication matrix; no server.\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item \textbf{DLUCB}: UCB plus accelerated (Chebyshev) consensus run in cycles.\item \textbf{RC-DLUCB}: rare communication.\item \textbf{Safe-DLUCB}: linear safety constraints.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item Regret $\tilde O(d\log(NT)\sqrt{NT})$, the centralised rate, plus a small additive ``\textbf{regret of delay}'' that depends on the spectral gap.\item Communication $O(dN^2)$ per round for DLUCB; RC-DLUCB trades a little regret for much less communication.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item The template for tightening our delay term: their delay cost is additive and only logarithmic, while ours is $N\cdot D\cdot N_{\mathrm{bins}}$.\item One of the protocols we compare against (Chebyshev gossip in E14--E20).\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \stated{} Decentralised algorithms with guarantees on \textbf{time-varying networks}.\item \stated{} Extensions to \textbf{nonlinear settings}.\item \stated{} Other types of safety constraints.\end{itemize}
+\section{Dubey \& Pentland (ICML 2020): cooperative kernel bandits (Coop-KernelUCB)}
+\textbf{A. Dubey, A. Pentland. Kernel Methods for Cooperative Multi-Agent Contextual Bandits. ICML 2020 (arXiv:2008.06220).}\\ File: \file{arxiv-2008.06220.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item Agents on a graph with delays; kernelised contextual bandits; agents may have different but related reward functions, linked by a network kernel.\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item \textbf{Coop-KernelUCB}: message passing (the LOCAL protocol) where observations are forwarded hop by hop with a time-to-live $\gamma$; product kernels for heterogeneous agents.\item A variant, EAGER-KernelUCB, that performs better in experiments but has no proof.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item Average pseudo-regret $\tilde O(\sqrt{\bar\chi(G_\gamma)T/V})$, where $\bar\chi(G_\gamma)$ is a clique-cover number of the $\gamma$-th graph power.\item Outperforms single-agent and naive cooperative baselines on synthetic and real networks.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item The closest prior work to Paper A: distributed, unknown reward, a graph, and a \emph{relay} protocol. It argues, as we found, that averaging is biased and message passing is preferable.\item Our main candidate for a baseline that can learn an unknown non-linear reward.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \stated{} \textbf{Lower bounds} on group regret in cooperative decision-making with delays (the limits of cooperation).\item \stated{} Prove a guarantee for EAGER-KernelUCB (conjectured $\tilde O(\sqrt{(\gamma+\alpha(G_\gamma))T/V})$ in the linear case).\item \stated{} Extend to the Bayesian case.\item \ours{} Communication grows linearly with $T$ (raw observations every round); event-triggered relaying is not studied.\end{itemize}
+\section{Open problems across this folder}
+\begin{itemize}\item \textbf{Graph-dependent lower bounds} are open (Dubey \& Pentland state this).\item \textbf{Time-varying graphs} and \textbf{nonlinear rewards} are open for gossip methods (Amani \& Thrampoulidis state this).\item Delay costs appear in very different forms: additive with the spectral gap (DLUCB), a clique cover under a square root (Coop-Kernel). No paper gives a tight additive delay term for nonparametric or sleeping bandits.\item Nothing here combines an unknown link with an index direction on a graph: the gap our project fills.\end{itemize}
+\end{document}

@@ -1,0 +1,94 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\setlist{nosep,leftmargin=1.4em}
+\newcommand{\stated}{\textcolor{green!40!black}{\textbf{Stated by the authors:}}}
+\newcommand{\ours}{\textcolor{orange!80!black}{\textbf{Our reading:}}}
+\usepackage{xurl}
+\newcommand{\file}[1]{\url{#1}}
+\sloppy
+\setlength{\parindent}{0pt}\setlength{\parskip}{4pt}
+
+\title{Single-Index Bandits\\[2pt]\large Bandits whose reward is an unknown function of an unknown projection}
+\author{CS6007 project notes}
+\date{October 2026}
+\begin{document}
+\maketitle
+\textbf{What this folder is about.} All five papers study rewards of the form
+$y=f(\langle x,\theta^*\rangle)+\eta$ (or an extension) where \emph{both} the direction $\theta^*$ and
+the link $f$ are unknown, so a linear or GLM bandit would be misspecified. They are all
+\textbf{single-agent} (one is batched). Our whole project extends this line to many agents, so
+this folder is our base: ZoomSIB-UCB is the algorithm we federate and decentralise.
+
+\textbf{Common machinery.} Every paper estimates $\theta^*$ with a \emph{Stein-type} estimator: for
+contexts with density $p$ and score $S(x)=-\nabla\log p(x)$, Stein's identity gives
+$\mathbb{E}[y\,S(x)]=\mu^*\theta^*$ with $\mu^*=\mathbb{E}[f'(\langle x,\theta^*\rangle)]$. This needs
+$\mu^*\neq 0$, an assumption that recurs below as an open problem.
+\tableofcontents
+\bigskip
+\section{Dey, Bhore \& Ghosh (2026): ZoomSIB-UCB, optimal regret}
+\textbf{D. Dey, S. Bhore, A. Ghosh. Optimal Regret for Single Index Bandits. arXiv:2605.09454, 2026.}\\ File: \file{2605.09454-Dey-Bhore-Ghosh-Optimal-Regret-Single-Index-Bandits.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item One agent; $K$ i.i.d.\ contexts per round; $f$ bounded and Lipschitz, possibly \emph{non-monotone}; $\|\theta^*\|_1=1$.\item Assumes $\mu^*\ge c_0/\mathrm{polylog}$ (bounded away from 0).\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item \textbf{Phase 1:} explore uniformly; estimate $\theta^*$ by a normalised, truncated Stein estimator.\item \textbf{Phase 2:} project arms onto $\hat\theta$, cut the index line into $\sim T^{1/3}$ bins, and run \emph{sleeping} UCB over the bins available each round.\item Experiments use an adaptive stopping rule for Phase 1; real-data tests on KDD Cup 99 and Forest Cover.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item Regret $\tilde O(T^{2/3})$ ($\tilde O(d^2T^{2/3})$ with dimension), improving GSTOR's $\tilde O(T^{3/4})$.\item A matching minimax lower bound $\tilde\Omega(T^{2/3})$ for non-monotone links (built in $d=1$).\item Sample splitting: $\hat\theta_0$ uses only Phase-1 data, so Phase 2's martingale argument holds.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item Our base algorithm. Fed-ZoomSIB and Dec-ZoomSIB-Relay federate its two phases; our server proofs reuse its Stein lemma and lower bound.\item E29 tests exactly its $\mu^*\neq0$ assumption across heterogeneous agents.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \stated{} Remove the requirement $\mu^*\neq0$ (``can an alternative technique be developed?'').\item \stated{} Go beyond bounded Lipschitz $f$.\item \stated{} The multi-index setting $y=f(B^\top x)$.\item \ours{} The grid is fixed (one-shot binning), so the rate is $T^{2/3}$ on every instance; truly adaptive (zooming) bins could give instance-dependent rates. Our E3 measured exponents 0.29--0.60.\end{itemize}
+\section{Kang et al.\ (2025/ICLR 2026): introducing single-index bandits}
+\textbf{Y. Kang, M. Liu, B. Yi, J. Lyu, Z. Zhang, D. Zhou, Y. Li. Single Index Bandits: Generalized Linear Contextual Bandits with Unknown Reward Functions. ICLR 2026 (arXiv:2506.12751).}\\ File: \file{arxiv-2506.12751.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item GLM bandits where the link is unknown (``single index bandits''). Motivation: a misspecified link can give linear regret for every existing GLM method.\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item \textbf{STOR} and \textbf{ESTOR} for \emph{monotone} $f$: Stein-based estimation of $\theta^*$, then explore-then-commit.\item A sparse high-dimensional extension.\item \textbf{GSTOR} for general $f$ under Gaussian design: double exploration, kernel regression for $f$.\item Baselines: LinUCB, LinTS, UCB-GLM, GLM-TSL, including deliberately misspecified versions.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item ESTOR: nearly optimal $\tilde O(\sqrt T)$ for monotone $f$; the same rate with sparsity in high dimension.\item GSTOR: sublinear regret for general $f$ ($\tilde O(T^{3/4})$, later improved to $T^{2/3}$ by Dey et al.).\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item First paper of the area; source of the truncated Stein estimator and of ESTOR/GSTOR, which are our single-agent baselines.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \ours{} The $T^{3/4}$ rate for general $f$ was not optimal (resolved by Dey et al.).\item \ours{} GSTOR's guarantees use a Gaussian design; its double exploration is costly in practice (Dey et al.\ report 79--90\% exploration on real data).\end{itemize}
+\section{Arya, Bhattacharjee \& Sriperumbudur (2026): kernel single-index bandits with inference}
+\textbf{S. Arya, S. Bhattacharjee, B. K. Sriperumbudur. Kernel Single-Index Bandits: Estimation, Inference, and Learning. arXiv:2603.18938, 2026.}\\ File: \file{arxiv-2603.18938.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item Finitely many arms, each with its \emph{own} index parameter, and an unknown link; covariates evolve under the bandit policy (adaptively collected data).\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item A kernelised $\varepsilon$-greedy policy: Stein-based index estimation plus inverse-propensity-weighted kernel ridge regression for the reward functions.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item Asymptotic normality of the index estimator under adaptive sampling (valid confidence regions).\item A directional functional CLT in an RKHS for the link estimate (pointwise confidence intervals).\item Finite-time regret, including $\tilde O(\sqrt T)$ under common-link Lipschitz conditions.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item Different goal (statistical inference, not optimal regret) and a different model (arm-specific indices). Related work, not a baseline.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \stated{} Multi-index or partially linear reward structures.\item \stated{} Uniform or anytime-valid confidence bands for sequential monitoring.\item \stated{} Robustness to model misspecification.\item \stated{} Exploration strategies that explicitly preserve inferential guarantees.\end{itemize}
+\section{Liu, Kang \& Lee (Sep 2026): low-rank single-index bandits}
+\textbf{Z. Liu, Y. Kang, T. C. M. Lee. Low-Rank Single-Index Bandits with Unknown Links: From Matrices to Tensors. arXiv:2609.33025, 2026.}\\ File: \file{2609.33025v1.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item Matrix and tensor bandits with a \emph{low-rank} index parameter and an unknown shared Lipschitz link; known regular candidate distributions; finite-variance noise.\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item \textbf{T-ESTOR} for monotone links: robust, rank-adaptive Stein estimation plus epoch-based greedy selection.\item \textbf{T-BSTOR} for non-monotone links: structured estimation plus robust bin-based learning (ZoomSIB-like).\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item Monotone: square-root regret with dimension dependence set by the rank, and a matching lower bound (rank, dimension, horizon) at large horizons.\item Non-monotone: the optimal $\tilde O(T^{2/3})$ horizon rate for fixed dimensions.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item Shows the Kang group is actively extending single-index bandits; a scooping-risk signal for multi-agent work.\item Independent confirmation that ``zero first-order Stein signal'' ($\mu^*=0$) is open, the case E29 studies.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \stated{} Certify learned (not exactly known) selected scores.\item \stated{} \textbf{Handle zero first-order signals} ($\mu^*=0$).\item \stated{} Guarantees for the adaptive exploration used in their experiments.\end{itemize}
+\section{Arya \& Song (2025): batched single-index bandits}
+\textbf{S. Arya, H. Song. Batched Single-Index Global Multi-Armed Bandits with Covariates. arXiv:2503.00565, 2025.}\\ File: \file{2503.00565v3.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item $K$ arms with rewards related through a shared single-index direction; feedback arrives in $M$ batches (policy updated only between batches).\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item \textbf{BIDS}: batched successive arm elimination with \emph{dynamic binning} along the index direction.\item Two regimes: a pilot direction is given, or the direction is estimated from data.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item A lower bound for the $K$-armed problem, and an upper bound matching it (fixed $K$) given an accurate pilot direction.\item With $M\gtrsim\log\log T$ batches the bound simplifies to $(K\log T)^{(1+\alpha)/3}T^{1-(1+\alpha)/3}$, avoiding the curse of dimensionality (a $d=1$ rate).\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item The closest single-index work to \emph{limited communication}: a batch is like a sync round. Relevant to our E27, where fixed batch schedules did \emph{not} match per-round sync for our UCB agents.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \stated{} The upper bound depends polynomially on $K$ while the lower bound is only logarithmic in $K$ (Remark 4.3).\item \stated{} Without a pilot, matching rates hold only when the margin parameter and batch size lie in restricted ranges.\end{itemize}
+\section{Open problems across this folder}
+\begin{itemize}\item \textbf{$\mu^*=0$ is open in two papers} (Dey et al.; Liu--Kang--Lee). Second-order Stein (our E25) and multi-agent pooling (our E29) are two routes.\item \textbf{Multi-index} rewards are open (Dey et al.; Arya et al.).\item \textbf{No multi-agent single-index work exists} in this folder; batching (Arya \& Song) is the closest communication-limited setting.\item \textbf{Adaptivity}: a fixed grid gives worst-case $T^{2/3}$; instance-dependent (zooming) rates are not studied.\end{itemize}
+\end{document}

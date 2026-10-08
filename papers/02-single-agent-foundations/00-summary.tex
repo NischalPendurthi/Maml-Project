@@ -1,0 +1,52 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\setlist{nosep,leftmargin=1.4em}
+\newcommand{\stated}{\textcolor{green!40!black}{\textbf{Stated by the authors:}}}
+\newcommand{\ours}{\textcolor{orange!80!black}{\textbf{Our reading:}}}
+\usepackage{xurl}
+\newcommand{\file}[1]{\url{#1}}
+\sloppy
+\setlength{\parindent}{0pt}\setlength{\parskip}{4pt}
+
+\title{Single-Agent Foundations\\[2pt]\large Kernelised bandits and misspecified linear bandits}
+\author{CS6007 project notes}
+\date{October 2026}
+\begin{document}
+\maketitle
+\textbf{What this folder is about.} Two single-agent papers that motivate and benchmark
+single-index bandits: one handles a fully \emph{nonparametric} reward (kernels), the other shows
+what goes wrong when a \emph{linear} reward is assumed but false. Both are by authors close to
+our project (A.~Gopalan; A.~Ghosh is our instructor).
+\tableofcontents
+\bigskip
+\section{Chowdhury \& Gopalan (2017): kernelised multi-armed bandits}
+\textbf{S. R. Chowdhury, A. Gopalan. On Kernelized Multi-armed Bandits. ICML 2017 (arXiv:1704.00445).}\\ File: \file{arxiv-1704.00445.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item Maximise an unknown function $f$ in a reproducing kernel Hilbert space (RKHS) from noisy evaluations; no parametric form.\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item \textbf{IGP-UCB}: an improved GP-UCB whose confidence width is smaller by roughly $\ln^{3/2}t$.\item \textbf{GP-TS}: a GP-based Thompson sampling algorithm.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item Regret bounds in terms of the information gain $\gamma_T$ of the kernel; IGP-UCB improves GP-UCB in theory and practice.\item The first frequentist regret bound for Thompson sampling on fixed, unknown RKHS functions.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item IGP-UCB is one of our single-agent baselines (E2, E4): it degrades with dimension $d$ because $\gamma_T$ grows with $d$, which single-index structure avoids.\item Coop-KernelUCB (folder 04) is built on its confidence bounds.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \stated{} Learn the kernel adaptively when it is unknown.\item \stated{} Time-varying functions from the RKHS.\item \stated{} Reinforcement learning with GP techniques.\item \stated{} Computational cost of optimising functions drawn from GPs.\end{itemize}
+\section{Ghosh, Chowdhury \& Gopalan (2017): misspecified linear bandits}
+\textbf{A. Ghosh, S. R. Chowdhury, A. Gopalan. Misspecified Linear Bandits. AAAI 2017 (arXiv:1704.06880).}\\ File: \file{arxiv-1704.06880.pdf}
+\paragraph{Setting.}
+\begin{itemize}\item Linear bandits where the true reward deviates from linearity (sparse deviations).\end{itemize}
+\paragraph{What they did.}
+\begin{itemize}\item Shows OFUL, a state-of-the-art linear bandit algorithm, is not robust to such deviations.\item Proposes \textbf{RLB}: test for linearity on the fly and fall back to a non-parametric UCB when the test fails.\end{itemize}
+\paragraph{Main results.}
+\begin{itemize}\item A formal regret upper bound for RLB; experiments (synthetic and real) show real feature-to-reward maps are often far from linear.\end{itemize}
+\paragraph{Why it matters for our project.}
+\begin{itemize}\item The motivation for unknown links: assuming the wrong model can give linear regret. Dey et al.\ cite it for exactly this.\end{itemize}
+\paragraph{Open problems.}
+\begin{itemize}\item \stated{} Other non-linearity structures than sparse deviations.\item \stated{} Information-theoretic regret lower bounds for general bandits with given feature sets.\item \stated{} Thompson sampling on linear bandits with deviations.\end{itemize}
+\section{Open problems across this folder}
+\begin{itemize}\item Both papers pay for flexibility: kernels pay in dimension (through $\gamma_T$), robust tests pay by falling back to unstructured UCB. Single-index models sit between them.\item Neither studies multiple agents; multi-agent versions of both exist (Coop-KernelUCB in folder 04).\end{itemize}
+\end{document}

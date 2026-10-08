@@ -62,8 +62,12 @@ for (const f of readdirSync(join(viz, 'vendor/fonts')))
    the published copy. Largest is ~3.8MB, well inside the 15MB per-binary cap. */
 const papers = join(viz, '../papers');
 if (existsSync(papers))
-  for (const f of readdirSync(papers))
+  for (const f of readdirSync(papers)) {
     if (f.endsWith('.pdf')) add(`papers/${f}`, `papers/${f}`);
+    else if (existsSync(join(papers, f)) && !f.includes('.'))      // topic subfolders
+      for (const g of readdirSync(join(papers, f)))
+        if (g.endsWith('.pdf')) add(`papers/${f}/${g}`, `papers/${f}/${g}`);
+  }
 
 writeFileSync(join(dist, 'files.json'), JSON.stringify(files, null, 2));
 
