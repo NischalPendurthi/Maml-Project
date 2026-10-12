@@ -1,6 +1,6 @@
 """Generic federated two-phase single-index bandit.
 
-Setting (viz/data/p8-fedzoomsib-conjecture.js, `p8.setting`): N agents share
+Setting: N agents share
 the SAME unknown direction theta_* and link f.  Each round every agent i sees
 its own K arms X_{i,t} ~ p, pulls one and observes
 y_{i,t} = f(<x_{i,t}, theta_*>) + eta_{i,t}.  Network regret is the sum of the

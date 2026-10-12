@@ -98,7 +98,6 @@ ZoomSIB-UCB has two phases, and both can be federated:
 | E22 | `exp22_single_vs_network.py` | Is the server setting just "one agent with N·T pulls"? | yes: N synced agents are within 0–10% of one agent at equal N·T; independent agents 2.3–5.1× worse; sync rounds grow logarithmically (61 → 213 as N·T grows 32×) | `fig22`, `fig22b`, [table](results/claims_e22.md) |
 | E23 | `exp23_server_vs_serverless_D.py` | Cost of no server vs graph diameter | +1.5% (D = 1) to +9% (D = 15), sublinear in D, nearly flat in T; 60–150× below the N·D·N_bins bound term | `fig23`, [table](results/claims_e23.md) |
 | E24 | `exp24_phase1_share.py` | How much traffic is Phase 1? | 0.1–1.6% for d = 5…200, shrinking with N·T; quantising it saves ≤ 0.4% of bits | `fig24`, [table](results/claims_e24.md) |
-| E25 | `exp25_multiindex.py` | Multi-index extension (second-order Stein, m-dim cubes) | collaboration exponent 0.45–0.52; Phase 1 reaches 11% of traffic at d = 100; projection averaging vs power iteration trade-off; solves a μ* = 0 case ZoomSIB cannot | `fig25`, [table](results/claims_e25.md) |
 | E26 | `exp26_compression.py` | Quantisation / top-k / rand-k on each phase | Phase-1 compression always loses; top-25% Phase-2 bins + error feedback saves 26–29% of bits at no regret cost | `fig26`, [table](results/claims_e26.md) |
 | E27 | `exp27_comm_tradeoff.py` | Regret vs number of syncs (periodic, event, batched grids) | event trigger: 130 syncs at ×1.004; periodic at 99 syncs ×1.45; 8 fixed batches still ×1.3–2.1 | `fig27`, [table](results/claims_e27.md) |
 | E28 | `exp28_dec_explore_coupling.py` | Exploration length, agreement and stopping on graphs | best T0 barely moves with D; the cost is disagreement (×1.25–1.34 on ring/path), removed by one agreement pass; "stop when any" ×1.4–2.2 | `fig28`, `fig28b`, [table](results/claims_e28.md) |
@@ -167,12 +166,12 @@ How θ is pooled and how the table is shared are pluggable strategies; see
 ### Watching it run
 
 ```bash
-python experiments/exp09_fed_live.py                          # results/fed_live_p2_periodic_25_quadratic.gif
+python experiments/exp09_fed_live.py                          # results/fed_live_p2_periodic_25_quadratic.gif (not tracked; ~4 MB)
 python experiments/exp09_fed_live.py --config p2_event_1 --link zigzag
 python experiments/exp09_fed_live.py --live                   # also plays in a window
 ```
 
-![Fed-ZoomSIB live](results/fed_live_p2_periodic_25_quadratic.gif)
+![Fed-ZoomSIB live, last frame](results/fed_live_p2_periodic_25_quadratic_final.png)
 
 Panels: the network (arrows light up with what each message carries; badges count an
 agent's unsynced pulls) · every agent's own `θ̂` vs the federated one vs `θ*` · Phase-1
@@ -438,7 +437,9 @@ python experiments/exp21_dec_live.py --graph directed --p1 pushsum --p2 pushsum
 python experiments/exp21_dec_live.py --graph hypercube --p1 chebyshev --p2 gossip --failure 0.5
 ```
 
-![Decentralised Fed-ZoomSIB live](results/dec_live_ring_consensus_flood.gif)
+![Decentralised Fed-ZoomSIB live, last frame](results/dec_live_ring_consensus_flood_final.png)
+
+The GIFs themselves (8–10 MB each) are not tracked; the commands above regenerate them.
 
 ---
 
@@ -580,7 +581,6 @@ python experiments/exp21_dec_live.py          # live GIF on a graph             
 python3 experiments/exp22_single_vs_network.py      # one agent at NT vs N agents at T     ~30 min
 python3 experiments/exp23_server_vs_serverless_D.py # cost of no server vs diameter         ~50 min
 python3 experiments/exp24_phase1_share.py           # Phase-1 share of communication        ~15 min
-python3 experiments/exp25_multiindex.py             # multi-index extension                 ~20 min
 python3 experiments/exp26_compression.py            # quantisation / top-k / rand-k         ~15 min
 python3 experiments/exp27_comm_tradeoff.py          # regret vs number of syncs             ~35 min
 python3 experiments/exp28_dec_explore_coupling.py   # exploration vs agreement on graphs    ~1 h
@@ -602,7 +602,7 @@ The reference papers live in `papers/`, grouped by topic into five subfolders
 decentralised bandits on a graph; beyond homogeneous agents). Each subfolder has a
 `00-summary.pdf` describing every paper in it and its open problems
 (`python3 papers/make_summaries.py` regenerates the sources;
-`python experiments/fetch_papers.py` re-downloads the arXiv PDFs). Build the pitch deck with `cd slides/pitch && pdflatex main.tex`.
+`python experiments/fetch_papers.py` re-downloads the arXiv PDFs). Build the pitch deck with `cd slides/dec-sib && pdflatex main.tex`.
 
 ---
 
@@ -643,9 +643,9 @@ experiments/             one script per study (exp01–exp13); seeds fixed
 tests/                   test_fedzoomsib.py  test_fl.py  test_dec.py
 docs/                    report-server-vs-serverless.md
 results/                 figures, benchmark tables, tuned hyperparameters (caches gitignored)
-slides/pitch/            5-minute pitch deck (LaTeX)
+slides/dec-sib/          pitch deck for the decentralised paper (LaTeX)
 papers/                  reference PDFs in 5 topic folders, each with 00-summary.pdf
-viz/                     interactive knowledge map of the literature
+docs/literature-map.md   related-work map for the decentralised paper
 ```
 
 **Adding an idea.** A new FL method is one file in `src/fed/fl/` (implement `round`), registered
@@ -674,38 +674,6 @@ is one file in `src/fed/phase1/` or `phase2/`. A new named algorithm is one dict
 `ESTOR` and `GSTOR` are our reimplementations following the templates in Kang et al.;
 no reference code is public, so their exploration schedules use the rates that paper's
 analysis prescribes, with the constants exposed as arguments.
-
----
-
-## Knowledge map
-
-An interactive dependency graph of the seven reference papers plus this project's own
-conjectures: **100 nodes** (assumptions, lemmas, theorems, algorithms, bounds, open
-problems) joined by **165 typed edges**, 35 of which cross paper boundaries.
-
-```bash
-cd viz && python3 -m http.server 8000     # then open http://localhost:8000
-node viz/tools/check.mjs                  # validate the data (schema, cycles, provenance)
-node viz/tools/bake-layout.mjs            # re-bake positions after editing node data
-```
-
-Three views over the same data, because the x axis is **time in every one of them** --
-switching modes only ever moves nodes vertically, so the chronology never reshuffles:
-
-| View | Clusters are | Reading across a row |
-|---|---|---|
-| **Concept** (default) | the ten concept lanes | one idea evolving, 2017 → ours |
-| **Timeline** | the eight papers | one paper's whole contribution |
-| **Matrix** | concept × paper cells | the gap table, literally |
-
-Clicking a node opens its formal statement in LaTeX, its proof, the assumptions it consumes,
-and a deep link into the source PDF at the right page. Cross-paper edges carry a prose
-`note` saying **why** the relation holds -- those are the claims this project rests on.
-
-Authoring is plain `.js` under `viz/data/`, one file per paper plus `cross-edges.js`. Not
-JSON: Chrome blocks `fetch()` of local files from a `file://` page, and `String.raw` lets
-LaTeX be pasted verbatim from the source with no escaping. `viz/validate.js` runs on every
-page load and reports dangling ids, cycles, misfiled edges and the proof-status census.
 
 ---
 

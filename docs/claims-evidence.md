@@ -19,7 +19,7 @@ the claim. Proofs: [`docs/proofs/server.pdf`](proofs/server.pdf). Tables: `resul
 | 1.3 | Event-triggered sync reaches the rate with O(log NT) syncs | Thm 12 + E22b | **Confirmed**, but the bound is 60–75× loose |
 | 1.4 | Without a server you pay an extra N·D·(NT)^{1/3} | Thm 16 (sketch) + E23 | **Bound holds but looks loose**; the real cost is far smaller |
 | 2.1 | Phase 1 is a negligible share of communication; compressing it buys nothing | Prop 15 + E24 | **Confirmed** |
-| 2.2 | In multi-index bandits Phase 1 becomes expensive | E25 | **Confirmed at large d** (11% at d = 100), with a real communication–accuracy trade-off |
+| 2.2 | In multi-index bandits Phase 1 becomes expensive | E25 (branch `research/claims-evidence`) | **Confirmed at large d** (11% at d = 100), with a real communication–accuracy trade-off |
 | 3.1 | Quantisation / top-k / rand-k, measured cleanly | E26 | **Phase-1 compression never helps; top-k Phase-2 bins with error feedback saves 26–29% for free** |
 | 3.2 | The regret–communication trade-off is a research path | E27 + §6 of the proofs | **Yes, but not via batching**: *when* to sync matters more than *how often* |
 | 4 | Without a server, exploration length and communication are coupled | E28 | **Partly**: the coupling is through *agreement*, not through the best length |
@@ -129,54 +129,13 @@ Setup: N = 16, with the same engine, seeds, T0 and γ for both versions.
 **Verdict.** Phase-1 compression cannot matter for the single-index model, and a rate argument
 backs this. Communication work belongs in Phase 2.
 
-### 2.2 Multi-index bandits (E25, [fig25](../results/fig25_multiindex.png), [table](../results/claims_e25.md))
+### 2.2 Multi-index bandits (E25)
 
-New code in `src/multiindex/`:
-- **Model:** y = g(Bᵀx) + noise, with B ∈ R^{d×m}.
-- **Phase 1:** second-order Stein (a d×d matrix); B̂ = its top-m eigenvectors.
-- **Phase 2:** sleeping UCB on m-dimensional cubes of side 4·(NT)^{-1/(m+2)}.
-- The constant 4 was calibrated once. With constant 1, an m = 2 grid has 10⁴ cubes, more than a
-  run can visit.
-
-**Estimator.** The subspace error decays like n^{-0.49} (bowl) and n^{-0.48} (mixed), the
-expected n^{-1/2}.
-
-**Collaboration still works** (network regret exponent in N, m = 2):
-
-| setting | Fed-ZoomMIB | Phase-1 sharing only | single-index Fed-ZoomSIB on the same problem |
-|---|---|---|---|
-| bowl, m = 2 | **0.45** | 1.04 | 0.90 (4.1× more regret at N = 8) |
-| mixed, m = 2 | **0.52** | 0.94 | 0.94 (5.2× more regret at N = 8) |
-
-**Bonus: the μ\* = 0 case.** `mixed` with m = 1 is g(z) = cos 2z.
-- It is even, so μ\* = E[g'] = 0, and first-order Stein (ZoomSIB) cannot find the direction:
-  8 384 regret for one agent.
-- Second-order Stein finds it: **1 653 regret, 5× less**.
-- Dey et al. list "requires μ\* ≠ 0; can an alternative technique be developed?" as open.
-- This is one link and no theory, but it is a lead worth showing Prof. Ghosh.
-
-**Does Phase 1 stop being negligible?** Phase-1 share of all scalars (N = 8, m = 2):
-
-| d | 10 | 20 | 50 | 100 |
-|---|---|---|---|---|
-| exact matrix pooling, d(d+1)/2 per agent | 0.20% | 0.61% | 3.2% | **11.4%** |
-| projection averaging, d·m per agent | 0.11% | 0.21% | 0.48% | 0.97% |
-| single-index (vector), for reference | 0.19% | 0.34% | 0.82% | 1.31% |
-
-**There is a real communication–accuracy trade-off between Phase-1 methods**, which never
-happens in the single-index model:
-- **Projection averaging** sends 7× less than exact pooling at d = 50.
-  - It costs nothing on `bowl` (large eigengap).
-  - It costs **+22% regret on `mixed`** (small eigengap).
-- **Federated power iteration** with 2 rounds fails at d = 50: subspace error 0.42–0.52 and
-  +40–94% regret. 5 rounds match exact pooling. The number of rounds needed is set by the
-  eigengap, as the theory predicts.
-
-**Verdict.** In multi-index bandits Phase 1 is a genuine federated estimation problem: a
-nonlinear target, cost growing like d², and an eigengap-dependent trade-off. This is where
-Phase-1 communication research belongs.
-
----
+Multi-index is a separate paper (Paper B), so `exp25_multiindex.py`, its figure and table live
+on branch `research/claims-evidence`. The engine (`src/multiindex/`) stays here because E29 uses
+second-order Stein (m = 1) as a sign-invariant estimator.
+Headline: Phase 1 reaches 11% of traffic at d = 100, and second-order Stein solves a μ\* = 0
+instance that first-order ZoomSIB cannot.
 
 ## Point 3: compression and the regret–communication trade-off
 
@@ -314,7 +273,6 @@ not about how long they explore. The research question this supports is:
 python3 experiments/exp22_single_vs_network.py      # ~30 min
 python3 experiments/exp23_server_vs_serverless_D.py # ~50 min
 python3 experiments/exp24_phase1_share.py           # ~15 min
-python3 experiments/exp25_multiindex.py           # ~20 min
 python3 experiments/exp26_compression.py          # ~15 min
 python3 experiments/exp27_comm_tradeoff.py        # ~35 min
 python3 experiments/exp28_dec_explore_coupling.py # ~1 h (10 trials)
