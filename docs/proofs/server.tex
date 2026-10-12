@@ -225,19 +225,20 @@ Both cases imply the claim.
 \end{proof}
 
 \begin{theorem}[Upper bound]\label{thm:upper}
-Under Assumption~\ref{ass}, with $\delta=1/(NT)$, $\Delta=(NT)^{-1/3}$, $\gamma=\gamma_0/N$, and
+Under Assumption~\ref{ass}, with $\delta=1/(NT)$, $\Delta=(NT)^{-1/3}$, any trigger threshold $\gamma>0$, and
 $NT_0=\big\lceil(L_{f'}\Xmax\tfrac{4C_\theta d}{\mu^*}\sqrt{\log(2dNT)}\,NT/L_f)^{2/3}\big\rceil$
 (and at least the size Lemma~\ref{lem:stein} requires),
 \begin{align*}
 \E R_T(N)\le{}&
 \underbrace{2L_f NT_0}_{\text{Phase 1}}
-+\underbrace{4\sqrt2\,c_\delta\sqrt{(1+\gamma_0)\Nb NT}}_{\text{UCB}}
++\underbrace{4\sqrt2\,c_\delta\sqrt{(1+N\gamma)\Nb NT}}_{\text{UCB}}
 +\underbrace{2L_{f'}\Delta NT}_{\text{discretisation}}\\
 &+\underbrace{4L_{f'}\Xmax\eps_0(NT_0)NT}_{\text{projection}}
 +\underbrace{2L_f\Nb(c_N+1)}_{\text{staleness}}
 +6L_f,
 \end{align*}
-which is $\tilde O\big((d\,NT)^{2/3}+N(NT)^{1/3}\big)=\tilde O\big(d^{2/3}(NT)^{2/3}\big)$ for
+With $\gamma=\gamma_0/N$ for a constant $\gamma_0$ this is
+$\tilde O\big((d\,NT)^{2/3}+N(NT)^{1/3}\big)=\tilde O\big(d^{2/3}(NT)^{2/3}\big)$ for
 $N\le\sqrt T$. This matches Theorem~\ref{thm:lower} in $N$ and $T$ up to logarithms: the server
 setting is ``one agent with $NT$ pulls'', and no faster.
 \end{theorem}
@@ -251,26 +252,74 @@ bin $j$, using Lemma~\ref{lem:stale} for the $k$-th pull:
 \end{align*}
 Summing over bins, Cauchy--Schwarz gives $\sum_j\sqrt{n_j}\le\sqrt{\Nb NT}$. Expanding $\omega$
 gives the discretisation and projection terms. With $\Delta=(NT)^{-1/3}$ we have
-$\Nb\le2\Xmax(NT)^{1/3}+1$, so the UCB and discretisation terms are $\tilde O((NT)^{2/3})$. The
+$\Nb\le2\Xmax(NT)^{1/3}+1$, so with $N\gamma=\gamma_0$ the UCB and discretisation terms are
+$\tilde O((NT)^{2/3})$. The
 choice of $NT_0$ balances $2L_fNT_0$ against the projection term
 $\propto d\,NT/\sqrt{NT_0}$; both become $\tilde O((dNT)^{2/3})$. Finally,
 $2L_f\Nb c_N=\tilde O(N(NT)^{1/3})\le\tilde O((NT)^{2/3})$ when $N\le\sqrt T$.
 \end{proof}
 
-\begin{remark}[On the $d$-dependence]
-DBG state $\tilde O(d^2T^{2/3})$ for one agent. The cruder per-pull argument above
-(Lemma~\ref{lem:perpull}, projection error charged to every pull) gives a leading term
-$(dNT)^{2/3}$, plus a lower-order $d^2/\mu^{*2}$ burn-in from Lemma~\ref{lem:stein}'s sample-size
-condition. This difference in $d$ has not been cross-checked against DBG's proof and should be
-verified before it is claimed. The $N$ and $T$ dependence, which is what claim 1.2 concerns, does
-not rely on it.
+\begin{remark}[The $d$-dependence: $(dNT)^{2/3}$ against DBG's $d^2T^{2/3}$]\label{rem:d}
+For $N=1$, Theorem~\ref{thm:upper} gives $\tilde O\big(d^{2/3}T^{2/3}+d^2/\mu^{*2}\big)$, which is
+better in $d$ than DBG's $\tilde O(d^2T^{2/3})$ (their Theorem~4.3 and Corollary~4.6). The difference comes from the choice of
+$T_0$, not from a sharper estimator.
+\begin{itemize}[nosep]
+\item \emph{DBG} (Appendix~C, event $E_1$ and Lemma~C.4) require the projection error to be at most
+half a bin, $\|\hat\theta_0-\theta^*\|_1\le\Delta/(2L)$. By Lemma~\ref{lem:stein} this needs
+$T_0\asymp L^2d^2\log(d/\delta)/(\mu^*\Delta)^2=\tilde\Theta(d^2T^{2/3})$ uniform rounds, each
+costing up to $2L_f$.
+\item \emph{Here} the projection error may exceed $\Delta$. Lemma~\ref{lem:perpull} only uses that
+a pull into bin $j$ has true index in the enlarged interval $\tilde I_j=I_j+[-\eps_{\rm p},\eps_{\rm p}]$,
+and the enlarged intervals are allowed to overlap. The error is charged as a bias of
+$4L_{f'}\eps_{\rm p}\propto d/\sqrt{NT_0}$ per pull, and balancing it against the $2L_f NT_0$
+exploration cost gives $NT_0\asymp(dNT)^{2/3}$.
+\item What remains of $d^2$ is the sample-size condition of Lemma~\ref{lem:stein},
+$NT_0\ge(2C_\theta d/\mu^*)^2\log(2d/\delta)$. It does not grow with $T$, so it is a burn-in.
+\end{itemize}
+Two caveats. (a) Nothing here shows $d^{2/3}$ is optimal: DBG's lower bound is for $d=1$.
+(b) The leading constant is $(L_{f'}\Xmax C_\theta/\mu^*)^{2/3}L_f^{1/3}$, so the improvement
+holds only once $T$ is large enough that the burn-in is below $T_0$. Since it also improves the
+single-agent result, check it with the DBG authors before stating it as a contribution.
 \end{remark}
 
-\begin{remark}[Constant $\gamma$]
-The code and experiments use a constant $\gamma=0.5$. Then $\sqrt{1+N\gamma}$ inflates the UCB
-term by up to $\sqrt N$ in the \emph{bound}. E22 finds no such loss in practice: the
-event-triggered run matches per-round sync.
+\begin{remark}[The trigger threshold $\gamma$]\label{rem:gamma}
+The factor $\sqrt{1+N\gamma}$ is not only an artefact of the proof. With a constant $\gamma$, all $N$
+agents can each accumulate $\gamma G_J$ unsynced pulls in the same bin before the trigger fires,
+so between syncs the network count of a bin can grow by a factor $1+N\gamma$ while each agent acts
+on a factor of only $1+\gamma$. That is UCB run in batches whose sizes grow geometrically with
+ratio $1+N\gamma$, and summing the widths over such a batch loses
+$\sqrt{1+N\gamma}$.
+
+E30 (Figure~\ref{fig:e30}, two links, 20 paired trials) measures this cost:
+\begin{itemize}[nosep]
+\item With $\gamma=2$ the regret relative to per-round sync grows with $N$: $\times1.11$--$1.12$
+($N=2$), $\times1.32$--$1.34$ ($N=4$), $\times1.73$--$1.80$ ($N=8$), $\times2.50$--$2.54$ ($N=16$).
+This is the trend the factor predicts.
+\item With $\gamma=0.5$ the loss is at most $0.4\%$ for every $N\le16$, i.e.\ up to $N\gamma=8$.
+\item The loss is \emph{not} a function of $N\gamma$ alone. At $N\gamma=4$ it is $11$--$23\%$ for
+$N\in\{2,4\}$ ($\gamma\ge1$) but under $0.5\%$ for $N\in\{8,16\}$ ($\gamma\le0.5$).
+\end{itemize}
+So the worst case is reached only when $\gamma$ itself is large. When $\gamma$ is small, the
+trigger fires as soon as the \emph{first} agent reaches $\gamma G_J$, and the other agents'
+unsynced counts are then typically well below $\gamma G_J$. A bound capturing this would need an
+assumption on how evenly agents pull a bin; it is not attempted here. Theorem~\ref{thm:upper}
+needs only $N\gamma=O(1)$, so a practical choice is $\gamma=\min(0.5,\gamma_0/N)$.
+
+The price is communication. Theorem~\ref{thm:comm} with $\gamma=\gamma_0/N$ gives
+$\Nb\big(1+\log_{1+\gamma_0/N}NT\big)\approx\Nb\,N\ln(NT)/\gamma_0$ sync rounds, linear in $N$.
+The experiments are consistent with the theorem: at a single $N$ a constant $\gamma$ is the case
+$\gamma_0=N\gamma$. E22 ($\gamma=0.5$, $N\le16$) has $\gamma_0\le8$.
 \end{remark}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{fig30_gamma_scaling.png}
+\caption{Constant $\gamma$ against $\gamma=\gamma_0/N$ (E30, $NT=160\,000$, 20 paired trials,
+$\gamma_0=4$). Left: regret relative to per-round sync; $\gamma=2$ degrades with $N$, $\gamma=0.5$
+does not. Right: Phase-2 sync rounds; all event triggers use 3--417 against 9\,940--79\,520 for
+per-round sync.}
+\label{fig:e30}
+\end{figure}
 
 \begin{figure}[H]
 \centering
@@ -450,6 +499,7 @@ formalises the window heuristic. Neither is done here.
 $NT$ against $N$ agents at $T$ with the same pooled exploration and bin width.
 \item Theorem~\ref{thm:comm}: E22 part 2 (Figure~\ref{fig:e22b}), sync rounds and per-bin triggers
 against $\log NT$.
+\item Remark~\ref{rem:gamma} (trigger threshold): E30 (Figure~\ref{fig:e30}).
 \item Proposition~\ref{prop:share}: E24 and E26 (Figures~\ref{fig:e24} and~\ref{fig:e26}).
 \item Theorem~\ref{thm:relay}: E23 and E28 (Figures~\ref{fig:e23}, \ref{fig:e28}, \ref{fig:e28b}).
 \item Section~\ref{sec:tradeoff}: E27 (Figure~\ref{fig:e27}).

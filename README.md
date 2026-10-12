@@ -101,6 +101,7 @@ ZoomSIB-UCB has two phases, and both can be federated:
 | E26 | `exp26_compression.py` | Quantisation / top-k / rand-k on each phase | Phase-1 compression always loses; top-25% Phase-2 bins + error feedback saves 26–29% of bits at no regret cost | `fig26`, [table](results/claims_e26.md) |
 | E27 | `exp27_comm_tradeoff.py` | Regret vs number of syncs (periodic, event, batched grids) | event trigger: 130 syncs at ×1.004; periodic at 99 syncs ×1.45; 8 fixed batches still ×1.3–2.1 | `fig27`, [table](results/claims_e27.md) |
 | E28 | `exp28_dec_explore_coupling.py` | Exploration length, agreement and stopping on graphs | best T0 barely moves with D; the cost is disagreement (×1.25–1.34 on ring/path), removed by one agreement pass; "stop when any" ×1.4–2.2 | `fig28`, `fig28b`, [table](results/claims_e28.md) |
+| E30 | `exp30_gamma_scaling.py` | Event trigger: constant γ vs γ = γ₀/N (the theorem's choice) | γ = 2 loses ×1.1 → ×2.5 as N grows 2 → 16; γ = 0.5 loses ≤ 0.4% at every N ≤ 16; the loss tracks γ, not N·γ alone | `fig30`, [table](results/claims_e30.md) |
 
 Common setup unless stated: `d = 10`, `K = 20` arms per round, noise σ = 0.1, contexts scaled
 to unit index variance, `T = 10 000` rounds per agent, N = 8 agents, 8 paired trials (every
@@ -584,6 +585,7 @@ python3 experiments/exp24_phase1_share.py           # Phase-1 share of communica
 python3 experiments/exp26_compression.py            # quantisation / top-k / rand-k         ~15 min
 python3 experiments/exp27_comm_tradeoff.py          # regret vs number of syncs             ~35 min
 python3 experiments/exp28_dec_explore_coupling.py   # exploration vs agreement on graphs    ~1 h
+python3 experiments/exp30_gamma_scaling.py          # constant γ vs γ0/N trigger             ~20 min
 # (E22–E28 take --quick for a few-minute smoke run into results/quick/)
 ```
 

@@ -17,6 +17,7 @@ the claim. Proofs: [`docs/proofs/server.pdf`](proofs/server.pdf). Tables: `resul
 | 1.1 | With a server, N agents × T rounds ≡ one agent × N·T rounds | E22 | **Confirmed** |
 | 1.2 | …and this is provably the best possible | Thm 3 + Thm 9 | **Proved** (rate in N, T) |
 | 1.3 | Event-triggered sync reaches the rate with O(log NT) syncs | Thm 12 + E22b | **Confirmed**, but the bound is 60–75× loose |
+| 1.3b | The trigger threshold must be γ = O(1/N) for the rate | Thm 9 + E30 | **Partly**: large γ really loses (×2.5 at N = 16, γ = 2); γ ≤ 0.5 is free up to N = 16 |
 | 1.4 | Without a server you pay an extra N·D·(NT)^{1/3} | Thm 16 (sketch) + E23 | **Bound holds but looks loose**; the real cost is far smaller |
 | 2.1 | Phase 1 is a negligible share of communication; compressing it buys nothing | Prop 15 + E24 | **Confirmed** |
 | 2.2 | In multi-index bandits Phase 1 becomes expensive | E25 (branch `research/claims-evidence`) | **Confirmed at large d** (11% at d = 100), with a real communication–accuracy trade-off |
