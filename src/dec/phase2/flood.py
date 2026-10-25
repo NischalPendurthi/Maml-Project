@@ -10,6 +10,12 @@ staleness is easiest to bound (≤ diameter rounds ⇒ ≤ N · diameter missing
   gamma   ...or event-triggered: when its unpublished pulls in some bin exceed
           gamma × the count it currently sees there (the rule of fed/phase2/event)
 
+  own     True (default): an agent also uses its own unpublished pulls.
+          False: the PUBLISHED-ONLY relay analysed in docs/proofs/serverless.tex --
+          every agent, the publisher included, acts only on published records.  Then
+          a pull's reward cannot influence when that pull is published, so each
+          agent's view is one prefix of a fixed order (no √N loss in the proof).
+
 Cost: each record update delivered to an agent costs 3 scalars per bin that
 changed since the receiver's previous copy (delta encoding) + 1 for the version.
 """
@@ -25,9 +31,10 @@ from .base import PER_BIN, DecPhase2
 class FloodTables(DecPhase2):
     name = "flood"
 
-    def __init__(self, every=1, gamma=None):
+    def __init__(self, every=1, gamma=None, own=True):
         self.every = int(every)
         self.gamma = gamma
+        self.own = own
 
     def setup(self, N, n_slots):
         super().setup(N, n_slots)
@@ -38,10 +45,14 @@ class FloodTables(DecPhase2):
         self.VS = np.zeros((N, n_slots))
 
     def view(self, i):
+        if not self.own:
+            return self.Vn[i], self.VS[i]
         return (self.Vn[i] + self.own_n[i] - self.kn[i, i],
                 self.VS[i] + self.own_S[i] - self.kS[i, i])
 
     def view_at(self, i, idx):
+        if not self.own:
+            return self.Vn[i, idx], self.VS[i, idx]
         return (self.Vn[i, idx] + self.own_n[i, idx] - self.kn[i, i, idx],
                 self.VS[i, idx] + self.own_S[i, idx] - self.kS[i, i, idx])
 

@@ -6,16 +6,21 @@ Goal: prove for Dec-ZoomSIB the kinds of bounds that the decentralised-bandit pa
 
 ## Status
 
+Updated 2026-10-25. Proofs live in [`proofs/serverless.tex`](proofs/serverless.tex); points to verify are in
+[`proofs/remarks.md`](proofs/remarks.md) (R1–R19).
+
 | # | Item | State |
 |---|---|---|
-| 0a | Trigger threshold γ: Theorem 9 for any γ, with an explicit √(1+Nγ) factor | **Done.** Checked by E30 ([table](../results/claims_e30.md)) |
-| 0b | d-dependence: (dNT)^{2/3} against DBG's d²T^{2/3} | **Deferred to future work.** The argument is in Remark `rem:d`; not needed for this paper |
-| 1 | Relay theorem, made rigorous | **Next** |
-| 2 | Tight delay term | open, main contribution |
-| 3 | Communication theorem for the relay | open |
-| 4 | Lower bound that depends on the graph | open, ambitious |
-| 5 | Agreement and stopping, Phase 1 → Phase 2 | open |
-| 6 | Robustness corollaries | open, cheap once 1 is done |
+| 0a | Trigger threshold γ: √(1+Nγ) factor | **Done.** E30 (server), E31 (flooding): γ ≤ 0.5 is free |
+| 0b | d-dependence | **Deferred** (future work) |
+| 1 | Relay theorem, rigorous | **Done.** Synchronised epochs (Theorem 17); the published-only relay, a one-line variant of the code's relay, with a single-prefix view (Theorem 27) |
+| 2 | Tight delay term | **Done for our protocols.** Horizon-free: O(NΛK) for epochs (Theorem 22; E31 excess/NDK = 0.86–1.1), O(K·F') with F' the farness for the published-only relay (Theorem 27). Theorem 19 (√Λ) for large K |
+| 3 | Communication theorem | **Done.** Theorem 29, Lemma 28; memory O(N_b+N), Prop 30 |
+| 4 | Lower bound that depends on the graph | **Proved, with a stated gap.** Theorem 7: Ω(N·min(T,D)^{1/3}) on ring/path (bites for T ≲ √(ND)). Upper graph term K·F'. Whether a linear-in-distance term is necessary is open |
+| 5 | Agreement and stopping | **Done.** Theorem 33; serverless stopping with exact agreement, Prop 34 + E33 |
+| 6 | Robustness corollaries | **Done.** Lemma 31 (corrected time-varying bound, tight), Cor 32, E32 |
+| 7 | Privacy | **Phase 1 proved** (Theorem 35), costly in practice (E35). Phase 2 open |
+| 8 | Baselines on our problem | **Done.** E34 (DLUCB-, ESTOR-, GSTOR-, Coop-Kernel-style with ideal relaying) |
 
 ## The proofs
 
@@ -52,9 +57,10 @@ bump construction. Dubey & Pentland list this as open.
 pooling up the tree gives η = 0. Any adaptive stopping rule needs ≥ D rounds to detect that all
 agents are ready. E28 measures both.
 
-**6. Robustness corollaries.** Flooded records arrive late, never wrong. So graphs that are
-connected over every window of B rounds give D → B·D; link failures and directed links work the
-same way.
+**6. Robustness corollaries.** Flooded records arrive late, never wrong. So graphs whose union over every window of B rounds is connected give D → B·(N−1), which is tight
+(a star example shows the union graphs' diameter does not help). If every window instead has a connected
+subgraph present throughout, of diameter D_B ≤ B, then D → D_B. Link failures and directed links work the
+same way. Done in `serverless.tex` (`lem:delivery`, `rem:star`; see remarks R8).
 
 ## Other theoretical directions to explore
 

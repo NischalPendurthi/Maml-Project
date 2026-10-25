@@ -18,6 +18,10 @@ matrix + dynamics, src/dec/graph/):
             all agents freeze together once it has reached everybody.
             `freeze="fixed"` freezes at round `T0` instead (the schedule a
             proof would use), with no flag at all.
+            `"pooled"` (Proposition 'prop:stop' of docs/proofs/serverless.tex): at each
+            checkpoint every agent floods its local Stein sum; Λ = D rounds
+            later every agent applies the drift rule to the SAME pooled sums,
+            so all stop at the server's checkpoint and freeze the same θ̂.
 
   Freeze    each agent freezes its own θ̂_i (`agree="none"`), or all adopt the
             exact pooled direction after one flooding pass (`agree="exact"`).
@@ -57,7 +61,7 @@ class DecTwoPhase(FedTwoPhase):
                  phase1="flood", phase1_kw=None,
                  phase2="flood", phase2_kw=None,
                  stop_rule="all", freeze="adaptive", T0=None, agree="none",
-                 graph_seed=0, **kw):
+                 graph_seed=0, dp_eps=None, dp_delta=1e-5, **kw):
         super().__init__(N, d, K, T, env_info, rng, phase1="exact", phase2="none", **kw)
         self.g = graph if isinstance(graph, Graph) else \
             Graph(graph, N, seed=graph_seed, **(graph_kw or {}))
@@ -68,11 +72,16 @@ class DecTwoPhase(FedTwoPhase):
         self.p2 = make_dec_phase2(phase2, **(phase2_kw or {}))
         self.p2.attach(self.g)
         self.stop_rule, self.freeze_mode, self.T0_fixed, self.agree = stop_rule, freeze, T0, agree
+        self.dp_eps, self.dp_delta = dp_eps, dp_delta
         if freeze == "fixed" and T0 is None:
             raise ValueError("freeze='fixed' needs T0")
         self._prev_i = None
         self._stable_i = np.zeros(N, dtype=int)
         self.flag = None                         # stop flag, once raised
+        self._stop_at = None                     # pooled rule: freeze round, and the sums to use
+        self._b_stop = None
+        self._prev_pool = None
+        self._stable_pool = 0
         self.theta_agents = None
         self.theta_now = np.full((N, d), 1.0 / d)
         self.flag_rounds = 0
@@ -144,6 +153,9 @@ class DecTwoPhase(FedTwoPhase):
             if self.t >= self.T0_fixed:
                 self._finalise_dec(b, n)
             return
+        if self.stop_rule == "pooled":
+            self._pooled_step(b, n)
+            return
         if self.flag is not None:                        # flag travelling
             self._spread_flag()
             if self.flag.all() or self.t >= self.T0_cap:
@@ -160,13 +172,43 @@ class DecTwoPhase(FedTwoPhase):
                 if self.flag.all():
                     self._finalise_dec(b, n)
 
-    def _finalise_dec(self, b, n):
+    def _pooled_step(self, b, n):
+        D = int(self.g.diameter)
+        if self._stop_at is not None:
+            if self.t >= self._stop_at:                   # everyone now holds the checkpoint's sums
+                self._finalise_dec(self._b_stop, n, flooded=True)
+            return
+        if self.t >= self.T0_cap:
+            self._finalise_dec(b, n)
+            return
+        if self.N * self.t < self._next_check:
+            return
+        self.last_event = "stein"
+        k = int(self.g.arcs() * self.N * (self.d + 1))    # every local sum crosses every arc once
+        self._log(k, k * FLOAT_BITS, phase1=True, rounds=D)
+        self._next_check = int(np.ceil(self.N * self.t * self.stop_growth))
+        th = normalize_l1(b.sum(axis=0))
+        if self._prev_pool is not None:
+            drift = float(np.abs(th - self._prev_pool).sum())
+            self._stable_pool = self._stable_pool + 1 if drift < self.stop_tol else 0
+        self._prev_pool = th
+        if self._stable_pool >= self.stop_patience:
+            self._stop_at = self.t + D
+            self._b_stop = b.copy()
+
+    def _finalise_dec(self, b, n, flooded=False):
+        if self.dp_eps is not None:                       # private Phase 1 (Theorem 'thm:private')
+            tau = self._tau(self.N * max(self.t, 1))      # every coordinate of a summand is in [−τ, τ]
+            sig = 2.0 * tau * np.sqrt(self.d) * np.sqrt(2.0 * np.log(1.25 / self.dp_delta)) / self.dp_eps
+            b = b + np.array([ag.rng.normal(0.0, sig, self.d) for ag in self.agents])   # own noise
         est, scalars, rounds = self.p1.estimate(self.t, b, n)
         if scalars or rounds:
             self._log(scalars, scalars * FLOAT_BITS, phase1=True, rounds=rounds)
         th = self._normalise_rows(est)
         D = self.g.diameter if np.isfinite(self.g.diameter) else self.N
-        if self.agree == "exact":
+        if flooded:                                       # pooled stop: sums already flooded
+            th = np.tile(normalize_l1(b.sum(axis=0)), (self.N, 1))
+        elif self.agree == "exact":
             th = np.tile(normalize_l1(b.sum(axis=0)), (self.N, 1))
             k = int(D * self.g.arcs() * (self.d + 1))
             self._log(k, k * FLOAT_BITS, phase1=True, rounds=int(D))
@@ -177,12 +219,18 @@ class DecTwoPhase(FedTwoPhase):
         self.T0_used = self.t
         self.T0_samples = [ag.n for ag in self.agents]
 
-        zmax = np.array([float(np.max(np.abs(np.asarray(ag.X_buf) @ th[i]))) if ag.n else 0.0
-                         for i, ag in enumerate(self.agents)])
-        zmax = flood_max(self.g.A0, zmax, D)              # max-consensus
-        k = int(D * self.g.A0.sum())
-        self._log(k, k * FLOAT_BITS, phase1=True, rounds=int(D))
-        self.W = max(float(zmax.max()) * self.w_pad, 10.0 * self.Delta)
+        if self.dp_eps is not None:
+            # data-free window W = X_max (as in the proofs), so Phase-1 contexts stay private
+            xmax = self.info["ctx_std"] * np.sqrt(
+                2.0 * np.log(2.0 * self.d * self.N * self.T * self.K / self.delta))
+            self.W = max(xmax, 10.0 * self.Delta)
+        else:
+            zmax = np.array([float(np.max(np.abs(np.asarray(ag.X_buf) @ th[i]))) if ag.n else 0.0
+                             for i, ag in enumerate(self.agents)])
+            zmax = flood_max(self.g.A0, zmax, D)              # max-consensus
+            k = int(D * self.g.A0.sum())
+            self._log(k, k * FLOAT_BITS, phase1=True, rounds=int(D))
+            self.W = max(float(zmax.max()) * self.w_pad, 10.0 * self.Delta)
 
         self.N_bins = int(np.ceil(2.0 * self.W / self.Delta))
         self.p2.setup(self.N, self.N_bins + 2)

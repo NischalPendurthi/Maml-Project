@@ -167,7 +167,7 @@ On time-varying graphs, replace `"tree"` with `"flood"`: Phase-1 records are rel
 
 ### 4.2 Assumptions (in addition to §3.2)
 
-- G is connected with diameter D. For time-varying graphs, B-connectivity: the union of any B consecutive graphs is connected, so information crosses in at most B·D rounds.
+- G is connected with diameter D. For time-varying graphs, B-connectivity: the union of any B consecutive graphs is connected, so information crosses in at most B·(N−1) rounds (not B·D: the union graphs' diameter does not help, see `proofs/serverless.tex`, `rem:star`).
 - Agents know N, T₀ and an upper bound on D.
 
 ### 4.3 Results and their difficulty
@@ -192,7 +192,7 @@ using `O(N d)` scalars in Phase 1 and `O(|E| · N · N_bins · log(NT))` scalars
 - Experimentally it is no better than relaying (E15, E20) and costs about 2 000× more communication. **Not recommended as the main proof.** Its one advantage is memory: one table per agent, against N for flooding.
 
 **Directed or time-varying graphs.**
-- *Relay version:* needs only B-connectivity, giving D → B·D in Theorem D. That is a small change.
+- *Relay version:* needs only B-connectivity, giving D → B·(N−1) in Theorem D (or D → D_B if each window has a connected subgraph present throughout). That is a small change.
 - *Push-sum version:* needs the Nedić–Olshevsky (2015) analysis. That is a significant change, and push-sum was *worse* in our experiments (E18).
 
 ### 4.4 Effort

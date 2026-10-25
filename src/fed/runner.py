@@ -61,6 +61,9 @@ def engine_class(engine):
     if engine == "indep":                     # N independent copies of any engine
         from .independent import IndependentEngines
         return IndependentEngines
+    if engine == "netbase":                   # prior papers' algorithms relayed over a graph
+        from ..dec.netbaselines import NetRelayBaseline
+        return NetRelayBaseline
     if engine == "random":                    # uniform arm choice: the no-learning floor
         from .independent import RandomAgents
         return RandomAgents

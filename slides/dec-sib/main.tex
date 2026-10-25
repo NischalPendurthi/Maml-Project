@@ -15,7 +15,7 @@
 \usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage{tikz}
-\usetikzlibrary{arrows,positioning,shapes}
+\usetikzlibrary{arrows,positioning,shapes,patterns}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{pifont}
@@ -28,10 +28,10 @@
 \newcommand{\todo}{\textcolor{orange!85!black}{\ding{109}}}
 
 \title[Decentralised Single-Index Bandits]{Decentralised Single-Index Bandits}
-\subtitle{Learning an unknown reward function without a server: findings so far}
+\subtitle{Learning an unknown reward function without a server: theorems and findings}
 \author[Harshitha \& Nischal]{\texorpdfstring{\textbf{Presented by:}\\[0.3em]\begin{tabular}{rl}\textcolor{blue}{Harshitha (23b1071)} & Dept. of CSE\\\textcolor{blue}{Nischal (23b1024)} & Dept. of CSE\end{tabular}\\[0.8em]\textbf{Course:} CS6007: Multi-Agent Machine Learning\\[0.2em]\textbf{Instructor:} Prof.\ Avishek Ghosh}{Harshitha, Nischal}}
 \institute[IIT Bombay]{IIT Bombay}
-\date{\small 6 October 2026}
+\date{\small 25 October 2026}
 
 \addtobeamertemplate{frametitle}{}{%
 \begin{tikzpicture}[remember picture,overlay]
@@ -45,7 +45,64 @@
 \usebackgroundtemplate{}
 
 %====================================================================
-\section{Setting}
+%====================================================================
+\section{Problem}
+
+
+%====================================================================
+\begin{frame}{Problem statement}
+\footnotesize
+\begin{block}{Setting}
+$N$ agents on a graph $\mathcal G$, \textbf{no server}. Each round agent $i$ sees $K$ contexts $x\in\mathbb R^d$, pulls one, observes $y=f(\langle x,\theta^*\rangle)+\eta$. Unknown, shared $\theta^*$ and $f$ ($f$ possibly non-monotone). Goal: small network regret $R_T(N)$, little communication.
+\end{block}
+\begin{block}{Key difficulties}
+\begin{itemize}
+\item \textbf{Two unknowns:} the direction needs pooled data; the shape of $f$ needs per-bin counts.
+\item \textbf{No coordinator:} totals are built over the graph, $\approx$ diameter rounds late.
+\item \textbf{Stale or averaged counts} break the UCB confidence argument.
+\item \textbf{Communication:} sharing tables every round costs $\Theta(|E|N_bT)$ scalars.
+\end{itemize}
+\end{block}
+\begin{alertblock}{What prior work misses}
+Single-index bandits are single-agent; decentralised bandits assume finite arms, linear or kernel models. No decentralised single-index bandit, and no graph-dependent lower bound for this class.
+\end{alertblock}
+\end{frame}
+
+%====================================================================
+\begin{frame}{Literature survey}
+\scriptsize
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}p{4.1cm}>{\raggedright\arraybackslash}p{3.7cm}@{}}
+\toprule
+\textbf{Work} & \textbf{What it does} & \textbf{Use / gap}\\
+\midrule
+Dey, Bhore \& Ghosh (2026) & one agent, non-monotone $f$; optimal $\tilde\Theta(T^{2/3})$ & our base algorithm; no network\\
+Kang et al.\ (ICLR 2026) & ESTOR (monotone $f$), GSTOR ($T^{3/4}$) & baselines; one agent\\
+Wang et al.\ (ICLR 2020) & bandits \emph{with a server}; event-triggered sync & our trigger; needs a server\\
+Landgren (2016); DDUCB (NeurIPS 2019) & decentralised $K$-armed; consensus, gossip & mixing baselines; finite arms\\
+DLUCB (AAAI 2021) & decentralised \emph{linear} bandits; delayed, consistent statistics & our epoch idea; linear model\\
+Coop-KernelUCB (ICML 2020) & kernels, message passing; graph lower bound \emph{open} & relaying; costly in $d$\\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+\begin{center}
+\fbox{\parbox{0.9\textwidth}{\centering\footnotesize\textbf{Gap:} an unknown index \emph{and} an unknown non-monotone link, learned by agents that talk only to neighbours.}}
+\end{center}
+\end{frame}
+
+%====================================================================
+\begin{frame}{Contributions $\star$}
+\small
+\begin{enumerate}
+\setlength{\itemsep}{0.35em}
+\item \textbf{New problem:} the first decentralised single-index bandit. Agents share $\theta^*$ and $f$ and talk only over a graph.
+\item \textbf{Lower bounds:} no serverless algorithm beats $\Omega((NT)^{2/3})$ (Thm 5). On rings and paths it must also pay $\Omega(N\min(T,D)^{1/3})$ (Thm 7, light cones).
+\item \textbf{Upper bounds:} the graph costs only an \emph{additive, horizon-free} term: $\tilde O\big((dNT)^{2/3}+N\Lambda K\big)$ (Thm 22). A provable relay with $\tilde O\big((dNT)^{2/3}+K F'\big)$, where $F'$ is the farness (Thm 27), beats the relay we first ran.
+\item \textbf{Communication and robustness:} logarithmic in $T$ for a fixed grid (Thm 29), $O(N_b+N)$ memory per agent. Directed, delayed and time-varying graphs change only the delivery time $\Lambda$, and our bound $B(N-1)$ is tight.
+\item \textbf{Experiments:} 16 studies with paired trials and 95\% CIs. Prior papers' algorithms (DLUCB-, ESTOR-, GSTOR- and kernel-style) on our problem. About 12k lines of Python, all figures reproducible.
+\end{enumerate}
+\end{frame}
+
 %====================================================================
 \begin{frame}{Recap: single-index bandits}
 \small
@@ -99,31 +156,238 @@ Network regret $R_T(N)=\sum_{i,t}\big[f(\langle x^*_{i,t},\theta_*\rangle)-f(\la
 \end{frame}
 
 %====================================================================
-\begin{frame}{Our algorithm: Dec-ZoomSIB-Relay}
-\small
-\begin{block}{Phase 1: exact pooling without a server}
-Stein sums are \textbf{sufficient statistics}: spanning-tree aggregation (up and back down a BFS tree, $2\cdot$depth rounds) gives \emph{every} agent the exact centralised $\hat\theta$.
+%====================================================================
+\section{Algorithm}
+
+
+%====================================================================
+\begin{frame}{The algorithm: Dec-ZoomSIB (published-only relay)}
+\scriptsize
+\begin{block}{Every agent $i$ runs the same code}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{@{}r@{\hspace{0.6em}}l@{}}
+\multicolumn{2}{@{}l}{\textbf{Phase 1: learn the direction}}\\
+1: & \textbf{for} $t\le T_0$: pull a random arm; $b_i\leftarrow b_i+\varphi_\tau\big(y\,S(x)\big)$ \quad$\triangleright$ truncated Stein sum\\
+2: & flood $b_i$; wait $\Lambda$ rounds \quad$\triangleright$ every agent now holds all $N$ sums\\
+3: & $\hat\theta\leftarrow\sum_kb_k/\|\sum_kb_k\|_1$ \quad$\triangleright$ identical everywhere; equals the server's\\
+\multicolumn{2}{@{}l}{\textbf{Phase 2: learn $f$ with sleeping UCB on bins of width $\Delta$ along $\langle x,\hat\theta\rangle$}}\\
+4: & \textbf{for} each round $t$:\\
+5: & \quad $(n_j,S_j)\leftarrow\sum_k$ freshest \emph{published} table of $k$ \quad$\triangleright$ own table too, once published\\
+6: & \quad pull an arm in the available bin with the largest $S_j/n_j+c_\delta/\sqrt{n_j}$\\
+7: & \quad \textbf{if} own unpublished pulls in some bin $j$ exceed $\gamma\max(n_j,1)$: flood own table\\
+\end{tabular}
 \end{block}
-\begin{block}{Freeze: one shared grid}
-All agents freeze the same $\hat\theta$; the window $W$ comes from max-consensus over $D$ rounds.
-\end{block}
-\begin{block}{Phase 2: event-triggered flooding of bin tables}
-Each agent stores the freshest copy of every agent's own $(n_j,S_j)$ table, relayed one hop per round. An agent republishes only when its unpublished count in a bin exceeds $\gamma\times$ what it currently sees.
-\end{block}
-\begin{alertblock}{Design principle}
-\centering \textbf{Relay exact, sparse updates instead of averaging.}
+\begin{alertblock}{Why this design}
+\begin{itemize}
+\item Phase 1 is \textbf{exact}: Stein sums are sufficient statistics, so flooding them gives the server's $\hat\theta$.
+\item Phase 2 relays \textbf{exact, sparse} tables, published only when a bin grows by a factor $\gamma$.
+\item Acting only on \emph{published} data is the key to the proof (Thm 27).
+\end{itemize}
 \end{alertblock}
 \end{frame}
 
 %====================================================================
-\section{Findings}
 %====================================================================
-\begin{frame}{Finding 1: collaboration pays without a server}
+\section{Theory}
+
+
+%====================================================================
+\begin{frame}{Theory: setting of the proofs}
+\footnotesize
+\begin{block}{Assumptions (DBG's, with one made explicit)}
+\begin{itemize}
+\item Contexts i.i.d., coordinates $\kappa$-sub-Gaussian, $\mathbb E[S_j(X)^2]\le M$; $|f|\le L_f$, $|f'|\le L_{f'}$ on $|z|\le X_{\max}$; $\mu^*=\mathbb E f'(\langle X,\theta^*\rangle)>0$.
+\item Noise i.i.d.\ and $\sigma$-sub-Gaussian. DBG's Stein lemma already needs i.i.d.\ samples, and their hard instance has $\mathcal N(0,1)$ noise.
+\end{itemize}
+\end{block}
+\begin{block}{Communication: only one number about the graph}
+\textbf{Delivery time $\Lambda$:} a flooded message reaches every agent within $\Lambda$ rounds.\\
+Static connected graph: $\Lambda=D$ (diameter). Everything below uses the graph \emph{only} through $\Lambda$.
+\end{block}
+\begin{block}{Results (\texttt{docs/proofs/serverless.pdf})}
+Thm 5, 7 lower bounds \;$\cdot$\; Thm 17, 22, 27 regret \;$\cdot$\; Thm 29 communication \;$\cdot$\; Lemma 31 robustness \;$\cdot$\; Thm 33, Prop 34 agreement \& stopping \;$\cdot$\; Thm 35 privacy
+\end{block}
+\end{frame}
+
+%====================================================================
+\begin{frame}{Theorem 5: no serverless algorithm beats $(NT)^{2/3}$}
+\footnotesize
+\begin{block}{Theorem}
+For any $N$-agent algorithm, on any graph, even one where every agent sees all data after every round:\quad
+$\displaystyle\sup_{\text{instances}}\mathbb E\,R_T(N)\ \ge\ c\,(NT)^{2/3}.$
+\end{block}
+\textbf{Proof idea: one agent can simulate the whole network.}
+\begin{center}
+\begin{tikzpicture}[x=0.5cm,y=0.5cm,font=\scriptsize]
+\foreach \t/\r in {0/1,1/2,2/3}{
+  \foreach \i in {1,...,4}{
+    \node[draw,circle,minimum size=0.45cm,inner sep=0pt,fill=blue!10] at ({\t*5+\i},0) {\i};
+  }
+  \node at ({\t*5+2.5},1) {round \r};
+  \draw[->,thick,orange] ({\t*5+4.4},-0.4) -- ({\t*5+5.6},-0.4) node[midway,below] {rewards};
+}
+\node[anchor=west] at (15.3,0) {$\cdots$};
+\end{tikzpicture}
+\end{center}
+\begin{itemize}
+\item Single-agent round $u=(t-1)N+i$ plays what agent $i$ would play in round $t$.
+\item It \textbf{withholds} round $t$'s rewards until all $N$ agents of round $t$ have acted, then runs one communication step.
+\item Same law of the history $\Rightarrow$ network regret $=$ regret of one agent over $NT$ rounds $\ge c(NT)^{2/3}$ (DBG Thm 5.1).
+\end{itemize}
+\vspace{-0.3em}{\tiny Hard instances: DBG's at horizon $NT$ ($d=1$, Gaussian contexts, $K\approx(NT)^{1/3}\log NT$ arms).}
+\end{frame}
+
+%====================================================================
+\begin{frame}{Theorem 7: the graph does cost regret (light cones)}
+\scriptsize
+\begin{columns}[c]
+\begin{column}{0.46\textwidth}
+\centering
+\begin{tikzpicture}[x=0.24cm,y=0.36cm,font=\tiny]
+\draw[->] (0,0) -- (19,0) node[right] {agents};
+\draw[->] (0,0) -- (0,5.6) node[above] {round};
+\foreach \c in {3,9.5,16}{
+  \fill[blue!20] (\c-3,0.2) -- (\c+3,0.2) -- (\c,5) -- cycle;
+  \draw[blue!60!black] (\c-3,0.2) -- (\c,5) -- (\c+3,0.2);
+  \fill (\c,0.2) circle (1.5pt);
+}
+\node[align=center] at (9.5,-1.2) {disjoint cones of radius $R$:\\ $\approx R^2$ agent-rounds each};
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.52\textwidth}
+\begin{block}{Lemma 6 (light cones are closed)}
+Information moves one hop per round, so the actions inside a cone depend only on data inside it.
+\end{block}
+\end{column}
+\end{columns}
+\begin{block}{Theorem 7 and Corollary 8}
+Each cone acts like one agent with $n\approx R^2$ pulls, so it pays $\Omega(n^{2/3})$. One common hard instance makes all the cones pay at once. On a ring or a path:
+\[
+\sup\mathbb E\,R_T(N)\ \ge\ c\,\max\Big\{(NT)^{2/3},\ \ N\min(T,D)^{1/3}\Big\}.
+\]
+\end{block}
+\begin{itemize}
+\item The second term wins when $T\lesssim\sqrt{ND}$: there, \textbf{no network on a ring can match one agent with $NT$ pulls}.
+\item Longer horizons: upper graph term $KF'$ (Thm 27) vs this $ND^{1/3}$. Linear in distance necessary? \alert{Open}: a cone already learns at rate $n^{2/3}$ on its own data.
+\end{itemize}
+\end{frame}
+
+%====================================================================
+\begin{frame}{Theorem 17: regret with synchronised epochs}
+\scriptsize
+\emph{Synchronised epochs:} a Phase 2 variant in which all agents act on the \emph{same} delayed pooled table plus their own pulls (see backup). It is the first version we could analyse.\vspace{-0.3em}
+\begin{block}{Theorem (with probability $\ge1-3\delta$)}
+\vspace{-0.8em}
+\begin{align*}
+R_T(N)\le{}&\underbrace{2L_fN(T_0{+}\Lambda)}_{\text{Phase 1}}
++\underbrace{4\sqrt2\,c_\delta\sqrt{(1{+}N\gamma)N_bNT}}_{\text{UCB}}
++\underbrace{2L_{f'}\Delta NT}_{\text{bin width}}\\[-0.3em]
+&+\underbrace{4L_{f'}X_{\max}\varepsilon_0 NT}_{\text{direction error}}
++\underbrace{2L_fN_b\big(2{+}N(\gamma{+}4\Lambda)\big)}_{\text{delay: the only graph term}}
+\end{align*}
+\end{block}
+\begin{block}{Corollary (rate): $\Delta=(NT)^{-1/3}$, $\gamma=\gamma_0/N$, $T_0$ balanced}
+\centering $R_T(N)=\tilde O\Big((d\,NT)^{2/3}\;+\;N\Lambda\,(NT)^{1/3}\Big)$\\[0.2em]
+\raggedright
+Matches Theorem 5 in $N$ and $T$ when $N\Lambda\le(NT)^{1/3}$: \textbf{the graph costs only an additive term.}
+\end{block}
+\vspace{-0.3em}\textbf{Proof in three steps}
+\scriptsize
+\begin{enumerate}\setlength{\itemsep}{0pt}
+\item \emph{Confidence:} view $=$ common prefix $+$ own block $\Rightarrow$ server width, no $\sqrt N$.
+\item \emph{Per pull:} regret $\le 2\times$width $+$ bin width (works for any sleeping pattern).
+\item \emph{Stale counts:} $\le\gamma G+4\Lambda$ unseen pulls per agent per bin.
+\end{enumerate}
+\end{frame}
+
+%====================================================================
+\begin{frame}{Theorem 22: the graph's cost does not grow with $T$}
+\scriptsize
+\begin{block}{Observation}
+Theorem 17 lets \emph{every} bin have $\approx4N\Lambda$ unseen pulls (a factor $N_b\sim(NT)^{1/3}$). But a pull into bin $j$ needs an arm in bin $j$, and there are only $K$ arms per agent-round, so in total about $N\Lambda K$ pulls are unseen.
+\end{block}
+\begin{block}{Theorem 22 (w.p.\ $\ge1-4\delta$; Lemma 21: Chernoff on how often each bin is available)}
+\vspace{-0.5em}
+\[
+\text{delay}\le\underbrace{(2L_f{+}4\sqrt2c_\delta)16N\Lambda\min(K,N_b)}_{\text{graph; no }T,\ N_b}+\underbrace{\tilde O(N_b)}_{\text{no graph}}
+\ \Rightarrow\ R_T(N)=\tilde O\big((dNT)^{2/3}+N\Lambda K\big)
+\]
+\end{block}
+\begin{columns}[c]
+\begin{column}{0.5\textwidth}
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+epochs & $NDK$ & measured & ratio\\
+\midrule
+complete & 320 & 353 & 1.10\\
+expander & 960 & 1,030 & 1.07\\
+torus & 1,280 & 1,319 & 1.03\\
+ring & 2,560 & 2,384 & 0.93\\
+path & 4,800 & 4,107 & 0.86\\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{itemize}
+\item Shape $NDK$ matches the measured excess within $\pm14\%$ on every graph (no fitted constant; the proved constant is larger).
+\item Almost flat in $T$, as predicted.
+\item Theorem 19 ($\Lambda\to\sqrt\Lambda$) is better when $K$ is large.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+%====================================================================
+\begin{frame}{Theorem 27: a provable relay, as good as the run one}
+\scriptsize
+\begin{block}{The one-line change: every agent acts only on \emph{published} records, including its own}
+Then a reward cannot change \emph{when} its pull is published (Lemma 24), and anything it influences reaches every agent later (triangle inequality). So each view is \textbf{one prefix of a fixed order}, a martingale (Lemma 25): no $\sqrt N$, no epochs.
+\end{block}
+\begin{block}{Theorem 27 ($N\gamma\le1/2$, w.p.\ $\ge1-4\delta$)}
+\vspace{-0.6em}
+\[
+R_T(N)=\tilde O\Big((d\,NT)^{2/3}+K\,F'\Big),\qquad F'=\max_i\sum_l\max(d(i,l),1)\ \ (\text{farness})\le ND
+\]
+The graph enters through the \textbf{sum of distances}, not $4N\Lambda$; horizon-free. Star $F'\approx2N$, ring $F'\approx ND/2$.
+\end{block}
+\vspace{-0.3em}
+\begin{alertblock}{Measured: the provable relay is better than the one we ran}
+Excess over the server at the proved $\gamma=1/(2N)$: complete $-25$ (vs $116$), ring $381$ (vs $528$), path $488$ (vs $633$), for $7$--$8\times$ more scalars. At $\gamma=0.5$ it equals the run relay.
+\end{alertblock}
+\end{frame}
+
+%====================================================================
+%====================================================================
+\section{Experiments}
+
+
+%====================================================================
+\begin{frame}{Experimental setup}
+\footnotesize
+\begin{block}{Instances (as in Dey, Bhore \& Ghosh)}
+$d=10$, $K=20$ contexts $\sim\mathcal N(0,I)$, noise $\sigma=0.1$. Links: quadratic $-(z-1)^2+1$ (non-monotone), zigzag $\sin z+0.3z$, logistic (monotone).
+\end{block}
+\begin{block}{Networks}
+$N=4$--$32$ agents (16 by default) on complete, expander, hypercube, torus, ring, path graphs ($D=1$--$15$), plus failing, delayed, time-varying and directed links.
+\end{block}
+\begin{block}{Protocol}
+\begin{itemize}
+\item $T\le20{,}000$ per agent ($NT\le320$k); pooled Phase 1 $=960\,(NT/160\text{k})^{2/3}$; $\Delta=(NT)^{-1/3}$; $\gamma=0.5$ unless stated.
+\item 10--20 \textbf{paired} trials (the same seeds for every method), mean $\pm$ 95\% CI.
+\item Metrics: network regret, \emph{excess} over the server, scalars sent.
+\item References: server, independent agents. Baselines: consensus / gossip / push-sum protocols; prior algorithms with ideal relaying.
+\end{itemize}
+\end{block}
+\end{frame}
+
+%====================================================================
+\begin{frame}{Results: collaboration pays without a server}
 \small
 \begin{columns}[c]
 \begin{column}{0.55\textwidth}
 \includegraphics[width=\textwidth]{e19_scaling.png}\\
-\centering\scriptsize E19, quadratic link, fixed pooled Phase-1 size
+\centering\scriptsize quadratic link, fixed pooled Phase-1 size
 \end{column}
 \begin{column}{0.43\textwidth}
 Network regret $\propto N^{\alpha}$, $N=4\ldots32$:\\[0.3em]
@@ -146,50 +410,7 @@ At $N=32$: hypercube within \textbf{6\%} of the server, ring within \textbf{30\%
 \end{frame}
 
 %====================================================================
-\begin{frame}{Mixing vs relaying: building a network sum}
-\footnotesize
-Every agent needs network totals: $\sum_i b_i$ (Phase 1) and $n_j,S_j$ per bin (Phase 2).
-Toy example: ring of 4 agents with values $(4,0,0,0)$; true average $=1$.
-\begin{columns}[T]
-\begin{column}{0.49\textwidth}
-\begin{block}{Mixing (consensus / gossip)}
-Each round: $x_i\leftarrow\sum_j P_{ij}x_j$ \;(average with neighbours)\\[0.3em]
-\scriptsize
-\begin{tabular}{ccccc}
-\toprule
-round & $a_1$ & $a_2$ & $a_3$ & $a_4$\\
-\midrule
-0 & 4 & 0 & 0 & 0\\
-1 & 1.33 & 1.33 & 0 & 1.33\\
-2 & 1.33 & 0.89 & 0.89 & 0.89\\
-3 & 1.04 & 1.04 & 0.89 & 1.04\\
-\bottomrule
-\end{tabular}\\[0.2em]
-$\to1$ but \textbf{never exact}; speed set by the \emph{spectral gap}. Sends the whole state every round.
-\end{block}
-\end{column}
-\begin{column}{0.49\textwidth}
-\begin{block}{Relaying (flooding / message passing)}
-Each round: forward fresher copies of \emph{each agent's own} record (with a version stamp).\\[0.3em]
-\scriptsize
-\begin{tabular}{cl}
-\toprule
-round & who knows ``$a_1$ has 4''\\
-\midrule
-1 & $a_2$, $a_4$\\
-2 & everyone\\
-\bottomrule
-\end{tabular}\\[0.2em]
-\textbf{Exact} after $D$ rounds (diameter); sends only records that changed.
-\end{block}
-\end{column}
-\end{columns}
-\vspace{0.1em}
-\centering UCB uses counts directly ($1/\sqrt{n_j}$): mixing gives \emph{approximate} counts, relaying gives \emph{exact but stale} ones.
-\end{frame}
-
-%====================================================================
-\begin{frame}{Finding 2: relaying vs mixing (E15, E18, E20)}
+\begin{frame}{Results: relaying matches mixing with far fewer scalars}
 \scriptsize
 \renewcommand{\arraystretch}{1.0}
 \begin{tabular}{>{\raggedright\arraybackslash}p{4.4cm}cc}
@@ -216,222 +437,140 @@ Chebyshev (accelerated) gossip & 2.1 & 3.5 & 7.3\\
 \footnotesize
 \begin{itemize}
 \item \textbf{Same regret, about 2000$\times$ fewer scalars:} consensus/push-sum need 140--285M scalars.
-\item On regret \emph{alone}, mixing is not worse: consensus every round is as good or slightly better on well-connected graphs (E16).
+\item On regret \emph{alone}, mixing is not worse: consensus every round is as good or slightly better on well-connected graphs.
 \item Relaying depends on the \emph{diameter}; mixing on the \emph{spectral gap}, and acceleration collapses when links fail.
 \end{itemize}
 \end{frame}
 
 %====================================================================
-\begin{frame}{When does relaying win? Scope and limitations}
-\footnotesize
-\begin{block}{Our claim (not ``relaying beats mixing'' in general)}
-For nonparametric bandits whose sufficient statistic is a \textbf{sparse table} (bin counts and sums), relaying exact, event-triggered updates \textbf{matches the regret} of consensus-based protocols with \textbf{orders of magnitude fewer scalars}, and is more robust to sparse or unreliable graphs.
-\end{block}
-\begin{columns}[T]
-\begin{column}{0.5\textwidth}
-\begin{alertblock}{Limitations we state ourselves}
-\begin{itemize}
-\item Memory $O(N\cdot N_{\mathrm{bins}})$ per agent
-\item Agents need unique IDs (no double counting)
-\item Individual agents' statistics are shared
-\end{itemize}
-\end{alertblock}
-\end{column}
-\begin{column}{0.48\textwidth}
-\begin{block}{Follow-ups that address them}
-\begin{itemize}
-\item \textbf{Bounded memory:} relay \emph{aggregated} tables along a spanning tree (as Phase 1 does)
-\item \textbf{Privacy:} agents add noise before relaying
-\end{itemize}
-\end{block}
-\end{column}
-\end{columns}
-\vspace{0.1em}
+\begin{frame}{Results: the graph's cost has the proved shape}
 \scriptsize
-\textbf{Why most papers mix:} constant memory in $N$, anonymous agents, built-in blending of data, a mature spectral-gap toolkit, and communication counted in \emph{rounds}, where both cost one message per edge.
-\textbf{Precedent for relaying:} Dubey \& Pentland (Coop-KernelUCB) use message passing for the same reason: averaging biases the estimates.
-\end{frame}
-
-%====================================================================
-\begin{frame}{Reference: a server $=$ one agent with $NT$ pulls}
-\small
-\begin{columns}[c]
-\begin{column}{0.5\textwidth}
-\includegraphics[width=\textwidth]{e22_vsN.png}\\
-\centering\scriptsize E22: fixed budget $NT=160$k, 20 paired trials (quadratic link)
-\end{column}
-\begin{column}{0.48\textwidth}
+\includegraphics[width=\textwidth]{e36_shape.png}
 \begin{itemize}
-\item $N$ synced agents: within \textbf{0--10\%} of one agent at horizon $NT$, never better.
-\item Independent agents: \textbf{2.3--5.1$\times$} worse.
+\item \textbf{Across graphs:} epochs follow $NDK$ (ratio $0.86$--$1.15$); the relays follow the farness $F$ (flood relay: excess$/KF=0.37$--$0.44$ on every graph).
+\item \textbf{Horizon:} $8\times$ longer $T$ raises the excess only $\times1.2$--$1.3$, as Theorems 22 and 27 say (horizon-free up to logs).
+\item \textbf{Arms:} the excess grows like $K^{0.4}$--$K^{0.5}$, slower than the bounds' linear $K$. That factor is loose (\alert{open}).
 \end{itemize}
-\begin{block}{Proved (server)}
-\textbf{Lower bound by simulation:} any $N$-agent algorithm $\ge c(NT)^{2/3}$.\\[0.2em]
-\textbf{Upper bound:} Fed-ZoomSIB $=\tilde O\big((NT)^{2/3}\big)$.
-\end{block}
-\scriptsize The server rate is \emph{closed}, so it is the yardstick for the serverless version.
-\end{column}
-\end{columns}
+{\tiny $N=16$, quadratic link, 10 paired trials. The server reference uses $\gamma=0.5$, so the proved relay ($\gamma=1/32$) can sit slightly below it.}
 \end{frame}
 
 %====================================================================
-\begin{frame}{Finding 3: what losing the server costs (E23)}
-\small
-\begin{columns}[c]
-\begin{column}{0.5\textwidth}
-\includegraphics[width=\textwidth]{e23_vsD.png}
-\end{column}
-\begin{column}{0.5\textwidth}
-\includegraphics[width=\textwidth]{e23_vsT.png}
-\end{column}
-\end{columns}
-\begin{itemize}
-\item Extra regret: \textbf{+1.5\%} (complete, $D=1$) to \textbf{+9\%} (path, $D=15$), $N=16$; grows \emph{sublinearly} in $D$.
-\item Nearly flat in the horizon: log-log slope \textbf{0.13--0.14} against the $1/3$ our bound predicts.
-\item Relay sends 15--20\% \emph{fewer} scalars than the server (no broadcast to all $N$).
-\end{itemize}
-\end{frame}
-
-%====================================================================
-\begin{frame}{Theory: our bound vs the measurement}
-\small
-\begin{block}{Theorem (relay, sketch)}
+\begin{frame}{Theorem 29: communication}
+\footnotesize
+\begin{block}{Theorem}
+Under flooding each message crosses each edge at most once. So the number of scalars is
 \[
-R_T(N)=\tilde O\big((NT)^{2/3}\big)\;+\;\underbrace{O\big(N\cdot D\cdot N_{\mathrm{bins}}\big)}_{\text{delay term}},\qquad N_{\mathrm{bins}}\sim(NT)^{1/3}
+\underbrace{2|E|N(d{+}1)}_{\text{Phase 1}}+\underbrace{2|E|\,|\mathcal E|\,\big(1+N(3N_b{+}1)\big)}_{\text{Phase 2}},
+\qquad |\mathcal E|\le1+N_b\big(1+\log_{1+\gamma}(NT)\big).
 \]
 \end{block}
-\begin{alertblock}{The gap}
-The delay term is \textbf{60--150$\times$ larger} than the measured cost, which barely grows with $T$.
+\begin{itemize}
+\item \textbf{Number of epochs:} between two alarms for a bin, its count grows by a factor $>1+\gamma$ $\Rightarrow$ logarithmically many epochs.
+\item For a fixed grid this is \textbf{logarithmic in $T$}, against $\Theta(|E|N_bT)$ for per-round sharing.
+\end{itemize}
+\begin{alertblock}{An honest trade-off}
+At the rate-optimal grid, $N_b\sim(NT)^{1/3}$, and with $\gamma=\gamma_0/N$ this becomes $\tilde O(|E|N^2(NT)^{2/3})$: polynomial in $T$.
+A constant $\gamma$ needs $N\times$ fewer epochs, but the bound pays $\sqrt{1+N\gamma}$. In experiments $\gamma\le0.5$ costs nothing; only $\gamma=2$ hurts.
 \end{alertblock}
-\begin{block}{Prior art says it can be tighter}
-\begin{itemize}
-\item DLUCB (decentralised linear): additive ``regret of delay'' only $\sim\log N/\log(1/|\lambda_2|)$.
-\item Coop-KernelUCB: the graph enters as $\sqrt{\bar\chi(G)}$ (clique cover).
-\end{itemize}
-\end{block}
-\begin{center}
-\textbf{Main theory target:} only Phase-1 delay and \emph{first visits} to bins pay the diameter.
-\end{center}
 \end{frame}
 
 %====================================================================
-\begin{frame}{Finding 4: communication is all in Phase 2}
+\begin{frame}{Robustness: only $\Lambda$ changes (Lemma 31, Cor 32)}
 \small
-\begin{columns}[c]
-\begin{column}{0.5\textwidth}
-\includegraphics[width=\textwidth]{e24_traffic.png}
-\end{column}
-\begin{column}{0.5\textwidth}
-\includegraphics[width=\textwidth]{e22b_syncs.png}
-\end{column}
-\end{columns}
-\begin{itemize}
-\item Phase 1 is \textbf{0.1--1.6\%} of all traffic ($d=5\ldots200$), and shrinks with $NT$; compressing it saves $\le0.4\%$ of bits.
-\item Event-triggered sync: 61$\to$213 rounds as $NT$ grows $32\times$ (per-round sync: 1k$\to$40k), at the same regret.
-\end{itemize}
-\end{frame}
-
-%====================================================================
-\begin{frame}{Finding 5: agents must agree, not explore longer}
-\small
-\begin{columns}[c]
-\begin{column}{0.5\textwidth}
-\centering\includegraphics[width=0.9\textwidth]{e28_T0.png}
-\end{column}
-\begin{column}{0.5\textwidth}
-\centering\includegraphics[width=0.9\textwidth]{e28_disagree.png}
-\end{column}
-\end{columns}
-\begin{itemize}
-\item The best exploration length $T_0^*$ barely moves with the graph.
-\item The cost is agents freezing \emph{different} $\hat\theta_i$: consensus costs $\times$1.25 (ring), $\times$1.34 (path).
-\item \textbf{One agreement pass} at the freeze removes it, for $\sim$2.8k extra scalars.
-\end{itemize}
-\end{frame}
-
-%====================================================================
-\begin{frame}{Finding 5: adaptive stopping on graphs fails}
-\small
-\begin{columns}[c]
+\begin{columns}[T]
 \begin{column}{0.56\textwidth}
-\includegraphics[width=\textwidth]{e28b_stop.png}
+\renewcommand{\arraystretch}{1.2}
+\footnotesize
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.1cm}l@{}}
+\toprule
+\textbf{Network} & \textbf{Delivery time $\Lambda$}\\
+\midrule
+static, connected & $D$\\
+directed, strongly connected & directed $D$\\
+link delay $\le\tau$ & $\tau D$\\
+union of every $B$ rounds connected & $B(N-1)$, \textbf{tight}\\
+subgraph stable for $B$ rounds & $D_B$ (its diameter)\\
+links fail w.p.\ $q$ & $\approx(D+\log NT)/(1-q)$\\
+\bottomrule
+\end{tabular}
 \end{column}
 \begin{column}{0.42\textwidth}
-\begin{itemize}
-\item ``Stop when \emph{any} agent is stable'': \textbf{1.4--2.2$\times$} regret, high variance.
-\item ``Stop when \emph{all} are'': close to fixed $T_0$, but needs $\ge D$ extra rounds to detect (not modelled).
-\item Even the server's adaptive stop is worse than a fixed $T_0$.
-\end{itemize}
-\begin{block}{Open question}
-A decentralised stopping rule that ends in \emph{agreement}, with a regret guarantee.
+\begin{block}{Why it is enough}
+The proofs use the graph only through $\Lambda$. Records arrive \emph{late}, never \emph{wrong}: the $(NT)^{2/3}$ term never changes, only the additive $N\Lambda(NT)^{1/3}$.
 \end{block}
 \end{column}
 \end{columns}
+\vspace{0.6em}
+\begin{alertblock}{The diameter of the union graphs does not help}
+Each window, the only edges form a star centred at a new agent, all at the window's last round. Every union graph has diameter 2, yet only one new agent is informed per window $\Rightarrow\Lambda=B(N-1)$.
+\end{alertblock}
 \end{frame}
 
 %====================================================================
-\begin{frame}{Summary of findings}
+\begin{frame}{Results: prior papers' algorithms on our problem}
 \scriptsize
-\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{>{\raggedright\arraybackslash}p{4.6cm}>{\raggedright\arraybackslash}p{5.6cm}}
-\toprule
-\textbf{Claim} & \textbf{Evidence}\\
-\midrule
-Collaboration pays without a server & regret $\propto N^{0.44\text{--}0.55}$ vs $N^{0.98}$ alone (E19)\\
-Relaying: same regret, far less talk & $\times$1.03 of server at its communication; mixing needs $\sim2000\times$ more scalars (E15, E20)\\
-Robust to failing links & +27\% at 90\% link failures (E18)\\
-Server = one agent at $NT$ & within 0--10\%; proved lower + upper bound (E22)\\
-No server costs little & +1.5\% to +9\%, nearly flat in $T$ (E23)\\
-Our delay bound is loose & 60--150$\times$ above measurement (E23)\\
-Communication is Phase 2 & Phase 1 $<2\%$; logarithmic sync rounds (E22, E24)\\
-Agreement is what matters & disagreement $\times$1.25--1.34, fixed by one pass (E28)\\
-\bottomrule
-\end{tabular}
+\includegraphics[width=0.88\textwidth]{e34_baselines.png}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{itemize}
+\item \textbf{Non-monotone link (quadratic):} ours is best, and the gap grows with $T$. Kernel UCB: $1.24\times$ ours at $T{=}1000$, $3.1\times$ at $T{=}4000$. Linear / monotone methods: $8.5$--$10\times$.
+\item \textbf{Communication:} $7$--$70\times$ fewer scalars than relaying raw data.
+\end{itemize}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{itemize}
+\item \textbf{Monotone link (logistic):} LinUCB ($0.13\times$) and ESTOR ($0.62\times$) win. That is the price of not assuming monotonicity.
+\item \textbf{Mostly increasing (zigzag $=\sin z+0.3z$):} LinUCB $0.54\times$ at $T{=}1000$, $1.12\times$ at $T{=}4000$.
+\end{itemize}
+\end{column}
+\end{columns}
+\vspace{0.2em}
+{\tiny $N=8$, ring, $d=10$, $K=20$, 10 paired trials. Baselines get \emph{ideal} relaying (every observation, exact, at graph-distance delay), at least as much information as their own gossip.}
 \end{frame}
 
 %====================================================================
-\section{Next}
-%====================================================================
-\begin{frame}{Baselines for the serverless setting}
-\small
-\begin{block}{1. Reference baselines (as in DLUCB, Coop-KernelUCB)}
-No communication (independent ZoomSIB) \quad and \quad centralised (server) \hfill \yes\ done
+\begin{frame}{Theorem 33: agents must agree on the direction}
+\footnotesize
+\begin{block}{Theorem}
+If agent $k$ bins with its own $\hat\theta_k$ and $\max_k\|\hat\theta_k-\hat\theta\|_1\le\eta_{\rm agree}$ ($\hat\theta$ = exact pooled), the regret grows by at most
+\[
+4L_{f'}X_{\max}\,\eta_{\rm agree}\,NT .
+\]
 \end{block}
-\begin{block}{2. Prior papers' protocols, run with ZoomSIB}
-Running consensus (Landgren et al.), gossip (DDUCB), accelerated consensus (DLUCB), message passing (Coop-Kernel), push-sum \hfill \yes\ done
-\end{block}
-\begin{block}{3. Prior papers' algorithms, run on our problems}
 \begin{itemize}
-\item DLUCB (decentralised linear): fails on non-monotone links \hfill \todo\ to do
-\item Dec-ESTOR / Dec-GSTOR: earlier single-index methods + our communication \hfill \todo\ to do
-\item Coop-KernelUCB (RBF): generic non-linear, pays in $d$ and compute \hfill \todo\ to do
+\item \textbf{Why:} directions enter the proof only through the projection error. Pooling a bin across agents still pools pulls whose means lie in the same interval.
+\item \textbf{Linear in $NT$:} even small disagreement hurts. It matters once $X_{\max}\eta_{\rm agree}NT\sim(NT)^{2/3}$.
+\item \textbf{Fix:} one extra flood of the local Stein sums gives every agent the exact direction ($\eta_{\rm agree}=0$), for $\Lambda$ rounds and $2|E|N(d{+}1)$ scalars.
+\end{itemize}
+\begin{block}{Measured}
+Consensus Phase 1: $\times1.25$ (ring), $\times1.34$ (path). One flooding pass: $\times1.08$, $\times1.09$.
+\end{block}
+\end{frame}
+
+%====================================================================
+%====================================================================
+\section{Conclusion}
+
+
+%====================================================================
+\begin{frame}{Conclusion and future work}
+\footnotesize
+\begin{block}{Conclusion}
+\begin{itemize}
+\item Without a server, agents learn an unknown index and link at the server's rate, plus an \textbf{additive graph cost that does not grow with $T$}.
+\item That cost is set by distances (farness); the measured cost has the proved shape.
+\item Relaying exact, sparse statistics: the regret of consensus, orders of magnitude fewer scalars, robust to failing links.
 \end{itemize}
 \end{block}
-\end{frame}
-
-%====================================================================
-\begin{frame}{Next steps (Paper A)}
-\scriptsize
-\renewcommand{\arraystretch}{1.0}
-\begin{tabular}{>{\raggedright\arraybackslash}p{4.8cm}>{\raggedright\arraybackslash}p{3.6cm}c}
-\toprule
-\textbf{Work} & \textbf{Deliverable} & \textbf{Status}\\
-\midrule
-Server theorem: lower + upper bound & proofs (\texttt{docs/proofs}) & \yes\\
-Relay theorem, full proof & Theorem with delay term & \todo\\
-\alert{Tight delay term} (borrow DLUCB's technique) & additive, near-logarithmic cost & \todo\\
-Lower bound in the diameter $D$ & matching necessity result & \todo\\
-Agreement lemma + dec.\ stopping rule & lemma + experiment & \todo\\
-Baselines: DLUCB, Dec-ESTOR/GSTOR, Coop-Kernel & experiment E29 & \todo\\
-Literature check (multi-agent SIB) & related-work section & \todo\\
-Bounded-memory relay; private (noisy) relay & extensions & \todo\\
-Write-up & workshop / AISTATS-style draft & \todo\\
-\bottomrule
-\end{tabular}
-\vspace{0.2em}
-\begin{center}
-\fbox{\parbox{0.9\textwidth}{\centering\small\textbf{Paper A:} the first single-index bandit over a network: optimal with a server, and what the graph costs without one.}}
-\end{center}
+\begin{alertblock}{Limitations}
+\begin{itemize}
+\item Graph lower bound $N\min(T,D)^{1/3}$ vs upper $KF'$: a gap. Bounds linear in $K$; we measure $\approx\sqrt K$.
+\item Synthetic data only; private Phase 1 is costly; private Phase 2 is open. The newest proofs are still being checked.
+\end{itemize}
+\end{alertblock}
+\begin{block}{Future work}
+Close the graph gap; gap-dependent $K$; private Phase 2; heterogeneous ($\theta^*_i$) and asynchronous agents.
+\end{block}
 \end{frame}
 
 %====================================================================
@@ -446,11 +585,11 @@ Write-up & workshop / AISTATS-style draft & \todo\\
 \item P.~Landgren, V.~Srivastava, N.~E.~Leonard. \emph{On Distributed Cooperative Decision-Making in Multiarmed Bandits.} ECC, 2016.
 \item Y.~Wang, J.~Hu, X.~Chen, L.~Wang. \emph{Distributed Bandit Learning: Near-Optimal Regret with Efficient Communication.} ICLR, 2020.
 \item S.~Salgia, Q.~Zhao. \emph{Distributed Linear Bandits under Communication Constraints.} arXiv:2211.02212, 2022.
+\item T.~Lattimore, C.~Szepesv\'ari. \emph{Bandit Algorithms.} Cambridge University Press, 2020.
 \end{enumerate}
 \end{frame}
 
 %====================================================================
 \input{Thank_you_Slide}
-%====================================================================
 
 \end{document}
