@@ -29,7 +29,7 @@ GRAPHS = ["complete", "hypercube", "ring"]
 LINK = "quadratic"
 CACHE = "results/exp19_dec_scaling.cells"
 DESIGNS = {
-    "relay_event": ("flood", {}, "flood", {"gamma": 0.5}, "Flooding + event flooding"),
+    "relay_event": ("flood", {}, "flood", {"gamma": 0.5, "own": False}, "Published-only relay"),
     "chebyshev":   ("chebyshev", {"k": 20}, "gossip", {"k": 5, "every": 10, "ess": True,
                                                        "accelerate": True},
                     "Chebyshev + ESS gossip"),

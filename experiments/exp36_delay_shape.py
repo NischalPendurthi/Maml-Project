@@ -7,6 +7,8 @@ Two refinements of the delay analysis in docs/proofs/serverless.tex predict:
   * the published-only relay (src/dec/phase2/flood.py, own=False), which we can now analyse
     without the √N loss: extra regret = O(K·(F + N)), F = Σ_k dist(i, k) the farness.
 It also asks whether the provable published-only relay is as good as the relay we ran (E23).
+Theorem 27 now covers every γ (the √(1+Nγ) factor sits in the UCB term), so the published-only
+relay at γ = 0.5 is the proved protocol with the flood relay's communication.
 
 Part A  graphs of growing diameter (N = 16, T = 10 000, K = 20)
 Part B  horizon T ∈ {2 500 … 20 000} on the ring: the predictions say flat in T
@@ -38,9 +40,9 @@ NTR = trials(10, 2)
 
 PROTO = {"flood": ("flood", {"gamma": GAMMA}),                         # the relay we ran (E23)
          "pub": ("flood", {"gamma": GAMMA, "own": False}),            # published-only relay
-         "pub_small": ("flood", {"gamma": 0.5 / N, "own": False}),    # ... with Nγ < 1, as proved
+         "pub_small": ("flood", {"gamma": 0.5 / N, "own": False}),    # ... with Nγ = 1/2 (rate-optimal bound)
          "epoch": ("epoch", {"gamma": GAMMA})}                        # synchronised epochs
-LABEL = {"flood": "flood relay (run in E23)", "pub": "published-only relay, γ = 0.5",
+LABEL = {"flood": "flood relay (run in E23)", "pub": "published-only relay, γ = 0.5 (proved)",
          "pub_small": "published-only relay, γ = 1/(2N) (proved)", "epoch": "synchronised epochs (proved)"}
 COLOR = {"flood": "#2a78d6", "pub": "#1baf7a", "pub_small": "#4a3aa7", "epoch": "#eb6834"}
 
@@ -65,7 +67,7 @@ def cfgs(graph, T, keys):
 
 def cell_fn(cell, names=None):
     part, graph, T, K = cell
-    keys = list(PROTO) if part == "A" else ["flood", "pub_small", "epoch"]
+    keys = list(PROTO) if part == "A" else ["flood", "pub", "pub_small", "epoch"]
     c = {k: v for k, v in cfgs(graph, T, keys).items() if names is None or k in names}
     out, _ = run_fed_sweep(c, NTR, N, DIM, K, T, LINK, sigma=SIGMA, record_every=T, progress=False)
     return summarize(out, extra=dict(D=lambda x: x["diameter"]))
@@ -81,7 +83,7 @@ def main():
     cells += [("C", "ring", T_MAIN, K) for K in KS]
     res = run_cells("e36", cells, cell_fn)
     use_style()
-    fig, (a, b, c) = plt.subplots(1, 3, figsize=(14, 3.8))
+    fig, (a, b, c) = plt.subplots(1, 3, figsize=(12, 3.7))
     rows = []
     for g in GRAPHS:
         r = res[("A", g, T_MAIN, K_MAIN)]
@@ -98,11 +100,10 @@ def main():
         a.errorbar(xs, [y[0] for y in ys], [y[1] for y in ys], marker="o", capsize=2, color=COLOR[k],
                    label=LABEL[k])
     a.set(xlabel="average farness F = Σ_k dist(i, k)", ylabel="extra regret over the server",
-          title=f"Across graphs (N = {N}, T = {T_MAIN:,}, K = {K_MAIN})")
-    a.legend(fontsize=6)
+          title=f"Across graphs (T = {T_MAIN:,}, K = {K_MAIN})")
     Favg_ring = farness("ring")[0]
     Dring = res[("B", "ring", TS[0], K_MAIN)]["epoch"]["D"][0]
-    for k in ("flood", "pub_small", "epoch"):
+    for k in ("flood", "pub", "pub_small", "epoch"):
         ys = [mci(excess(res[("B", "ring", T, K_MAIN)], k)) for T in TS]
         b.errorbar([N * T for T in TS], [y[0] for y in ys], [y[1] for y in ys], marker="o", capsize=2,
                    color=COLOR[k], label=LABEL[k])
@@ -127,8 +128,8 @@ def main():
           title="Number of arms (ring)")
     for ax in (b, c):
         ax.axhline(0, color="#8a8984", lw=0.8)
-        ax.legend(fontsize=6)
-    fig.tight_layout()
+    fig.legend(*a.get_legend_handles_labels(), loc="lower center", ncol=4, fontsize=9, frameon=False)
+    fig.tight_layout(rect=(0, 0.1, 1, 1))
     save(fig, "fig36_delay_shape")
     intro = (f"N = {N}, {LINK} link, d = {DIM}, σ = {SIGMA}, {NTR} paired trials, mean ± 95% CI. Pooled Phase-1 "
              f"size {N0}·(T/10⁴)^(2/3); Δ = (NT)^(-1/3). 'excess' is regret minus the server's (same seeds). "

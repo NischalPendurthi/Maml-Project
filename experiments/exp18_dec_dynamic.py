@@ -37,7 +37,7 @@ SETTINGS = ([(f"torus q={q}", "torus", dict(failure=q)) for q in QS] +
              ("expander matching", "expander", dict(matching=True)),
              ("directed", "directed", {})])
 DESIGNS = {
-    "relay":     ("flood", {}, "flood", {"gamma": 0.5}, "Flooding + event flooding"),
+    "relay":     ("flood", {}, "flood", {"gamma": 0.5, "own": False}, "Published-only relay"),
     "consensus": ("consensus", {"steps": 5}, "consensus", {}, "Running consensus"),
     "pushsum":   ("pushsum", {}, "pushsum", {}, "Push-sum"),
     "chebyshev": ("chebyshev", {"k": 20}, "gossip", {"k": 5, "every": 10, "ess": True,

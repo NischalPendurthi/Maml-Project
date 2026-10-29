@@ -16,6 +16,10 @@ staleness is easiest to bound (≤ diameter rounds ⇒ ≤ N · diameter missing
           a pull's reward cannot influence when that pull is published, so each
           agent's view is one prefix of a fixed order (no √N loss in the proof).
 
+  owner   None (default), or a patience A >= 0: coordinated first visits (E37, see
+          Phase2Strategy.hold_fresh).  Decisions still use counts only, so the causality
+          argument for own=False is unchanged.
+
 Cost: each record update delivered to an agent costs 3 scalars per bin that
 changed since the receiver's previous copy (delta encoding) + 1 for the version.
 """
@@ -31,10 +35,11 @@ from .base import PER_BIN, DecPhase2
 class FloodTables(DecPhase2):
     name = "flood"
 
-    def __init__(self, every=1, gamma=None, own=True):
+    def __init__(self, every=1, gamma=None, own=True, owner=None):
         self.every = int(every)
         self.gamma = gamma
         self.own = own
+        self.patience = owner
 
     def setup(self, N, n_slots):
         super().setup(N, n_slots)

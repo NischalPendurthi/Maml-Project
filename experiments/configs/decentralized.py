@@ -41,6 +41,7 @@ P1_LABEL = {
 DEC_P2 = {
     "flood":        ("flood", {}),
     "flood_event":  ("flood", {"gamma": 0.5}),
+    "pub_event":    ("flood", {"gamma": 0.5, "own": False}),    # published-only relay (Thm 27)
     "flood_10":     ("flood", {"every": 10}),
     "consensus":    ("consensus", {}),
     "consensus_x2": ("consensus", {"inflate": 2.0}),
@@ -56,6 +57,7 @@ DEC_P2 = {
 
 P2_LABEL = {
     "flood": "Flooding, every round", "flood_event": "Flooding, event-triggered γ=0.5",
+    "pub_event": "Published-only relay, γ=0.5",
     "flood_10": "Flooding, every 10", "consensus": "Running consensus (Landgren)",
     "consensus_x2": "Running consensus, counts ÷ 2", "pushsum": "Push-sum",
     "gossip_naive": "Gossip ×5 / 10 rounds, naive counts",
@@ -66,7 +68,7 @@ P2_LABEL = {
 }
 
 # What each Phase-2 key is, for colouring (fixed hue order).
-P2_FAMILY = {"flood": "relay", "flood_event": "relay", "flood_10": "relay",
+P2_FAMILY = {"flood": "relay", "flood_event": "relay", "pub_event": "relay", "flood_10": "relay",
              "consensus": "consensus", "consensus_x2": "consensus", "pushsum": "consensus",
              "gossip_naive": "burst gossip", "gossip_ess": "burst gossip", "cheb_ess": "burst gossip",
              "neighbor": "one-hop", "server": "server", "server_event": "server", "none": "none"}

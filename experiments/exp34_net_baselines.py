@@ -10,7 +10,7 @@ at least as informative as the gossip the papers use:
     Dec-GSTOR          explore-then-commit single-index, pooled exploration
     Coop-Kernel-style  IGP-UCB (RBF kernel on R^d) on all relayed data
 
-against Dec-ZoomSIB-Relay (tree Phase 1 + event-triggered flooding), the server version,
+against Dec-ZoomSIB-Relay (tree Phase 1 + the published-only relay of Theorem 27), the server version,
 and N independent ZoomSIB agents, on a ring with N = 8, for a non-monotone (quadratic),
 a multimodal (zigzag) and a monotone (logistic) link.
 
@@ -44,7 +44,8 @@ def t0_for(T):
 
 def configs(T):
     t0 = t0_for(T)
-    c = {"relay": dec_config(GRAPH, "tree", {}, "flood", {"gamma": GAMMA}, T0=t0, bin_width="network"),
+    c = {"relay": dec_config(GRAPH, "tree", {}, "flood", {"gamma": GAMMA, "own": False}, T0=t0,
+                             bin_width="network"),
          "server": dec_config("complete", "server", {}, "server_event", {"gamma": GAMMA}, T0=t0,
                               bin_width="network"),
          "indep": dict(engine="indep", inner=dict(engine="fed", freeze="fixed", T0=t0 * N,
@@ -66,7 +67,7 @@ def cell_fn(cell, names=None):
 def main():
     res = run_cells("e34", [(l, T) for l in LINKS for T in TS], cell_fn)
     use_style()
-    fig, axes = plt.subplots(1, len(LINKS), figsize=(4.6 * len(LINKS), 3.8))
+    fig, axes = plt.subplots(1, len(LINKS), figsize=(3.2 * len(LINKS) + 1.6, 3.2), sharey=True)
     axes = np.atleast_1d(axes)
     rows = []
     T = TS[-1]
@@ -77,9 +78,11 @@ def main():
         errs = [1.96 * r[k]["R"].std(ddof=1) / np.sqrt(len(r[k]["R"])) if len(r[k]["R"]) > 1 else 0
                 for k in keys]
         ax.barh(range(len(keys)), vals, xerr=errs, color=[COLOR[k] for k in keys])
-        ax.set_yticks(range(len(keys)), [LABEL[k] for k in keys], fontsize=7)
-        ax.invert_yaxis()
-        ax.set(xlabel="network regret", title=f"{link} link, N = {N}, T = {T:,}, {GRAPH}")
+        ax.set_yticks(range(len(keys)), [LABEL[k] for k in keys], fontsize=10)
+        ax.set(xlabel="network regret", title=f"{link} link")
+        ax.locator_params(axis="x", nbins=4)
+    axes[0].invert_yaxis()
+    fig.suptitle(f"N = {N}, {GRAPH}, T = {T:,}", fontsize=10)
     fig.tight_layout()
     save(fig, "fig34_net_baselines")
     for link in LINKS:

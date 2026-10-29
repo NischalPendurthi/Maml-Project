@@ -126,6 +126,7 @@ class FedTwoPhase:
         self.theta_local = None
         self.W = self.N_bins = self.ucb_const = None
         self.contrib = None                     # diagnostic: who fed each bin
+        self.blind_pulls = 0                    # diagnostic: Phase-2 pulls into a bin seen as empty
         self._last = None
         self.T0_used = None
 
@@ -221,7 +222,12 @@ class FedTwoPhase:
         n, S = self.p2.view_at(i, bj)
         nn = np.maximum(n, 1)
         ucb = np.where(n == 0, np.inf, S / nn + self.ucb_const / np.sqrt(nn))
-        return int(idx[int(np.argmax(ucb))])
+        held = self.p2.hold_fresh(i, bj, n == 0)
+        if held is not None and not held.all():
+            ucb = np.where(held, -np.inf, ucb)
+        k = int(np.argmax(ucb))
+        self.blind_pulls += int(n[k] == 0)
+        return int(idx[k])
 
     def update(self, i, X, a, y):
         if self.phase == 1:
@@ -285,4 +291,5 @@ class FedTwoPhase:
             comm_rounds_phase1=self.comm_rounds_phase1,
             comm_log=np.array(self.comm_log, dtype=np.int64).reshape(-1, 4),
             trigger_counts=getattr(self.p2, "trigger_counts", None),
+            blind_pulls=self.blind_pulls,
         )

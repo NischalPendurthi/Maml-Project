@@ -7,13 +7,13 @@ Goal: prove for Dec-ZoomSIB the kinds of bounds that the decentralised-bandit pa
 ## Status
 
 Updated 2026-10-25. Proofs live in [`proofs/serverless.tex`](proofs/serverless.tex); points to verify are in
-[`proofs/remarks.md`](proofs/remarks.md) (R1–R19).
+[`proofs/remarks.md`](proofs/remarks.md) (R1–R20).
 
 | # | Item | State |
 |---|---|---|
-| 0a | Trigger threshold γ: √(1+Nγ) factor | **Done.** E30 (server), E31 (flooding): γ ≤ 0.5 is free |
+| 0a | Trigger threshold γ: √(1+Nγ) factor | **Done.** E30 (server), E31 (flooding): γ ≤ 0.5 is free. Theorem 27 now holds for every γ (R20), so γ is a proved regret–communication dial |
 | 0b | d-dependence | **Deferred** (future work) |
-| 1 | Relay theorem, rigorous | **Done.** Synchronised epochs (Theorem 17); the published-only relay, a one-line variant of the code's relay, with a single-prefix view (Theorem 27) |
+| 1 | Relay theorem, rigorous | **Done.** Synchronised epochs (Theorem 17); the published-only relay, a one-line variant of the code's relay, with a single-prefix view (Theorem 27), for **any γ** since 2026-10-25 ("views nest", Lemma 26 Step 1). At γ = 0.5 it is the protocol we run, at the flood relay's communication (E36) |
 | 2 | Tight delay term | **Done for our protocols.** Horizon-free: O(NΛK) for epochs (Theorem 22; E31 excess/NDK = 0.86–1.1), O(K·F') with F' the farness for the published-only relay (Theorem 27). Theorem 19 (√Λ) for large K |
 | 3 | Communication theorem | **Done.** Theorem 29, Lemma 28; memory O(N_b+N), Prop 30 |
 | 4 | Lower bound that depends on the graph | **Proved, with a stated gap.** Theorem 7: Ω(N·min(T,D)^{1/3}) on ring/path (bites for T ≲ √(ND)). Upper graph term K·F'. Whether a linear-in-distance term is necessary is open |
@@ -21,6 +21,7 @@ Updated 2026-10-25. Proofs live in [`proofs/serverless.tex`](proofs/serverless.t
 | 6 | Robustness corollaries | **Done.** Lemma 31 (corrected time-varying bound, tight), Cor 32, E32 |
 | 7 | Privacy | **Phase 1 proved** (Theorem 35), costly in practice (E35). Phase 2 open |
 | 8 | Baselines on our problem | **Done.** E34 (DLUCB-, ESTOR-, GSTOR-, Coop-Kernel-style with ideal relaying) |
+| 9 | Coordinated first visits (bin owners) | **Measured, not proved.** E37: a hash-assigned owner per bin, patience A = 10, removes the relay's gap to the server on all graphs (excess −41…−12, was 118…643), 1.6× scalars. Causality lemmas hold; held pulls need their own term (`rem:owners`) |
 
 ## The proofs
 

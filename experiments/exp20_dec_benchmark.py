@@ -35,7 +35,7 @@ GRAPHS = ["ring", "torus", "expander"]
 SCENARIOS = ["iid", "covariate"]
 LINK = "quadratic"
 P1 = ["flood", "tree", "chebyshev", "consensus", "pushsum"]
-P2 = ["flood", "flood_event", "cheb_ess", "consensus", "pushsum"]
+P2 = ["flood", "pub_event", "cheb_ess", "consensus", "pushsum"]
 CACHE = "results/exp20_dec_benchmark.cells"
 
 

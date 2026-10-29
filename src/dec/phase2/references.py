@@ -27,8 +27,9 @@ class Server(_Attach, PeriodicSync):
 class ServerEvent(_Attach, EventTriggered):
     name = "server_event"
 
-    def __init__(self, gamma=0.5):
+    def __init__(self, gamma=0.5, owner=None):
         super().__init__(gamma=gamma)
+        self.patience = owner
 
 
 class NoneShare(_Attach, NoShare):

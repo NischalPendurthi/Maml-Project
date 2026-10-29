@@ -43,7 +43,9 @@ On a ring or a path it must also pay $\Omega(N\min(T,D)^{1/3})$, which dominates
 (Theorem~\ref{thm:conelower}). (2) With high probability, Dec-ZoomSIB-Relay has regret equal to the server bound plus an
 additive delay term that does not grow with the horizon: $\tilde O\big((d NT)^{2/3}+N\Lambda K\big)$ for synchronised
 epochs (Theorems~\ref{thm:regret} and~\ref{thm:hfree}), and $\tilde O\big((d NT)^{2/3}+KF'\big)$, with $F'$ the farness,
-for the published-only relay, a one-line variant of the relay we run (Theorem~\ref{thm:pubrelay}). (3) It sends $O\big(|E|\,N\,\Nb^2\log_{1+\gamma}(NT)\big)$ scalars, logarithmic in $T$ for a fixed
+for the published-only relay, a one-line variant of the relay we run (Theorem~\ref{thm:pubrelay}). The relay bound
+holds for every trigger threshold $\gamma$, with a factor $\sqrt{1+N\gamma}$ on the UCB term only, so it also covers the
+constant $\gamma$ we run, at the flood relay's communication. (3) It sends $O\big(|E|\,N\,\Nb^2\log_{1+\gamma}(NT)\big)$ scalars, logarithmic in $T$ for a fixed
 grid (Theorem~\ref{thm:comm}), with $O(\Nb+N)$ memory per agent (Proposition~\ref{prop:memory}). (4) Directed graphs,
 link delays and time-varying graphs only change $\Lambda$ (Corollary~\ref{cor:robust}). (5) If agents freeze different
 directions, the regret grows by at most $4L_{f'}\Xmax\,\eta\, NT$ (Theorem~\ref{thm:agree}). Any server stopping rule
@@ -92,15 +94,20 @@ $\|x\|_\infty\le\Xmax$. Call this event $E_x$.
 \end{assumption}
 DBG state (i) only as conditional sub-Gaussianity. Their Stein bound (Lemma~\ref{lem:stein} below) is proved for
 i.i.d.\ pairs $(x,y)$, which needs i.i.d.\ noise in Phase~1, so we state it explicitly. Their hard instance
-(Lemma~\ref{lem:dbglower}) has i.i.d.\ $\mathcal N(0,1)$ noise. Phase~2 uses only the consequence
-$\E[e^{\lambda\eta_{i,t}}\mid\mathcal F_{t,i},a_{i,t}]\le e^{\lambda^2\sigma^2/2}$.
+(Lemma~\ref{lem:dbglower}) has i.i.d.\ $\mathcal N(0,1)$ noise. Phase~2 of the epoch protocol
+(Sections~\ref{sec:alg}--\ref{sec:regret}) uses only the consequence
+$\E[e^{\lambda\eta_{i,t}}\mid\mathcal F_{t,i},a_{i,t}]\le e^{\lambda^2\sigma^2/2}$. The published-only relay
+(Section~\ref{sec:pubrelay}) orders pulls by arrival time rather than by (round, agent), so it uses the full i.i.d.\
+statement (i).
 
 \paragraph{Communication model.} The agents are the vertices of a graph $\cG=(V,E)$ with $|V|=N$. Each round has
 two steps: a \emph{decision step}, in which every agent pulls an arm, and then a \emph{communication step}, in which
 every agent may send messages to its neighbours. A message sent in the communication step of round $s$ is
 received before the decision step of round $s+1$. \emph{Flooding} means that an agent forwards every message the
 first time it receives it, to all its neighbours, and never again. A message received in step $s$ is forwarded in
-step $s+1$, so it moves one hop per step. (Faster relaying would only shorten the delivery times below.)
+step $s+1$, so it moves one hop per step. (For the epoch protocol, faster relaying would only shorten the delivery
+times below. Section~\ref{sec:pubrelay} uses exactly this one-hop-per-step flooding, because its proof needs the exact
+arrival time of every record.)
 
 \begin{assumption}[Delivery time]\label{ass:delivery}
 There is a known integer $\Lambda\ge1$ such that a message that is flooded from any agent in the communication step
@@ -398,7 +405,7 @@ when $k$ next publishes, which is decided \emph{after} the pull. Agent $i$'s vie
 prefixes. Bounding each prefix separately costs a factor $\sqrt N$ in the width (this was the gap in the earlier sketch).
 The epoch protocol above avoids this: every agent's view is one common prefix plus its own pulls (Lemma~\ref{lem:conf}).
 E23 measures the code version. E31 implements the epoch version (\texttt{src/dec/phase2/epoch.py}): it pays
-3--6$\times$ more extra regret than the code version, because every agent waits for the farthest agent's data.
+3--6.5$\times$ more extra regret than the code version, because every agent waits for the farthest agent's data.
 Section~\ref{sec:pubrelay} analyses a one-line variant of the code version, the \emph{published-only relay}. It has a
 single-prefix view, so it needs no epochs, and it performs like the code version (E36).
 \end{remark}
@@ -803,7 +810,7 @@ free in practice: within 2\% of $\gamma=1/N$ on the torus and the ring. Only $\g
 \section{A relay we can analyse: the published-only relay}\label{sec:pubrelay}
 %======================================================================
 
-The epoch protocol makes every agent wait for the farthest agent, and E31 measures the price: 3--6$\times$ the extra
+The epoch protocol makes every agent wait for the farthest agent, and E31 measures the price: 3--6.5$\times$ the extra
 regret of the flood relay in the code. The flood relay's proof broke because a pull's reward could change \emph{when}
 that pull is published. Its agent uses its own unpublished rewards, which change its next pulls, which change when its
 trigger fires. One change removes the problem: \emph{every agent, the publisher included, acts only on published
@@ -815,10 +822,12 @@ bin $j$
 \begin{equation}\label{eq:pubtrigger}
 (\text{own pulls into }j\text{ not yet published})\ >\ \gamma\max\big(V_{k,j}(s),1\big),
 \end{equation}
-where $V_{k,j}(s)$ is the count agent $k$ acts on at round $s$. A record published by $l$ in step $s$ can be used by agent
-$i$ from round $s+\max(d(i,l),1)$ on, by flooding (Lemma~\ref{lem:flood}). Agent $i$ acts on the sum, over all agents
-$l$, of the freshest record of $l$ it can use. This is the code's flood relay (\texttt{src/dec/phase2/flood.py}) with
-\texttt{own=False}. We assume $N\gamma\le1/2$.
+where $V_{k,j}(s)$ is the count agent $k$ acts on at round $s$. In this section the graph is static and connected,
+and records are flooded one hop per step as in Section~\ref{sec:setting}. So a record published by $l$ in step $s$ can be
+used by agent $i$ from round $s+\max(d(i,l),1)$ on, and not earlier (Lemma~\ref{lem:flood}; the $\max(\cdot,1)$ is
+the publisher's own one-round delay). Agent $i$ acts on the sum, over all agents
+$l$, of the freshest record of $l$ it can use, so $n_{i,j}(t)=V_{i,j}(t)$. This is the code's flood relay
+(\texttt{src/dec/phase2/flood.py}) with \texttt{own=False}. Any $\gamma>0$ is allowed.
 
 \begin{lemma}[Rewards travel only inside published records]\label{lem:causal}
 Let pull $m$ be published in step $s_m$. If its reward influences anything agent $k'$ does at round or step $\tau$
@@ -826,8 +835,14 @@ Let pull $m$ be published in step $s_m$. If its reward influences anything agent
 \end{lemma}
 \begin{proof}
 Agents decide actions from their usable records and their contexts, and triggers from counts. Counts depend on actions
-only, never directly on rewards. So a reward can enter a decision only through a record that contains it, and records
-reach $k'$ no earlier than stated. This includes $k'=k_m$, which uses its own pull only once it is published.
+only, never directly on rewards. So a reward can enter a decision only through a record that carries it, or carries
+something it changed. We show by induction on $\tau$: if $y_m$ changes something agent $k'$ does at time $\tau$, then
+$\tau\ge s_m+\max(d(k_m,k'),1)$. The first thing $y_m$ can change is a decision of an agent that has received a record
+containing $y_m$ itself; such a record left $k_m$ in step $s_m$ or later and arrives no earlier than stated. This includes
+$k'=k_m$, which uses its own pull only once it is published. Otherwise the change reaches $k'$ through a record of some
+agent $a$ whose content $y_m$ changed at a time $\tau_a\ge s_m+\max(d(k_m,a),1)$ (induction), and that record arrives at
+$k'$ no earlier than $\tau_a+\max(d(a,k'),1)$. By the triangle inequality and $\max(x,1)+\max(y,1)\ge\max(x+y,1)$, this
+is at least $s_m+\max(d(k_m,k'),1)$.
 \end{proof}
 
 For agent $i$, give each pull $m$ the key $\kappa_i(m)=\big(s_m+\max(d(i,k_m),1),\ s_m,\ k_m,\ r_m\big)$, ordered
@@ -854,6 +869,9 @@ If the first coordinates are equal, then $s_{m'}\ge\tau\ge s_m+1>s_m$. So in bot
 
 \emph{Martingale.} Order all pulls, of every bin, by $\kappa_i$. By the step above, which pull comes next, and whether
 it is in bin $j$, is decided by rewards that come earlier in this order (and by contexts and internal randomness).
+This includes the absence of pulls: whether some pull gets a key below a given value $x$ is decided by actions and
+trigger decisions taken at times whose $\kappa_i$-key is at most $x$ (ties broken by $s$, as above), and these depend
+only on rewards with smaller keys. So no pull can later turn out to belong before one already in the sequence.
 The next pull's own reward is not among them. With the noises drawn in advance (the stack-of-rewards model of
 Lattimore \& Szepesv\'ari, Sec.~4.6), the next noise is therefore independent of everything that came before in the
 order, and has the law of $\eta$. Restricting to bin $j$ is optional skipping, which keeps the martingale property.
@@ -863,56 +881,133 @@ agent, bin and prefix length $p\le NT$, with $\delta'=\delta/(N\Nb NT)$, gives t
 \end{proof}
 
 \begin{lemma}[Stale counts for the published-only relay]\label{lem:pubstale}
-Let $F'=\max_i\sum_l\max(d(i,l),1)$, which is the farness of the graph plus at most $N$. With probability at least
-$1-\delta$ the following holds for every pull: if agent $i$ makes the $k$-th pull into bin $J$ at round $t$, then
-$n_{i,J}(t)\ge(k-1)/4$ unless $k-1\le4U'_J$, where $U'_J=2F'q_J+3\ell'$ and $\ell'=\log(N\Nb T/\delta)$.
+Let $F'=\max_i\sum_l\max(d(i,l),1)$, which is the largest farness $\max_i\sum_ld(i,l)$ plus $1$ (only $l=i$ has
+$d=0$), let
+$\ell'=\log(N\Nb T/\delta)$ and $U'_J=2F'q_J+3\ell'$. With probability at least $1-\delta$ the following holds for every
+pull: if agent $i$ makes the $k$-th pull into bin $J$ (in lexicographic order) at round $t$, and $n=n_{i,J}(t)$, then
+\[
+k-1\ \le\ n+N\gamma\max(n,1)+U'_J .
+\]
+In particular, if $k-1>2U'_J+N\gamma$, then $n\ge1$ and $n\ge\dfrac{k-1}{2(1+N\gamma)}$.
 \end{lemma}
 \begin{proof}
-Every pull agent $i$ sees happened in an earlier round. An earlier pull of agent $l$ into $J$ that $i$ does not see is
-either unpublished at step $t-\max(d(i,l),1)$, or made in the last $\max(d(i,l),1)$ rounds. By the trigger
-\eqref{eq:pubtrigger}, after each communication step agent $l$ has at most $\gamma\max(V_{l,J},1)$ unpublished pulls in
-$J$, and $V_{l,J}\le k-1$. The second kind number at most $u$, the number of agent-rounds in these windows at which $J$
-is available. Hence $k-1\le n+N\gamma\max(k-1,1)+u$. As in Lemma~\ref{lem:avail}, but now with windows of total size
-$\sum_l\max(d(i,l),1)\le F'$ and a union over agents too, $u\le U'_J$. With $N\gamma\le1/2$ and $k\ge2$, this gives
-$n\ge(k-1)/2-U'_J$, which is at least $(k-1)/4$ once $k-1>4U'_J$.
+\emph{Step 1: views nest.} For all agents $i,l$ and every round $s$, every record that agent $l$ can use at round $s$,
+agent $i$ can use at round $s+\max(d(i,l),1)$. Indeed, let a record of agent $k$ be published in step $s_k$ with
+$s_k+\max(d(l,k),1)\le s$. By the triangle inequality $d(i,k)\le d(i,l)+d(l,k)$ and $\max(a+b,1)\le\max(a,1)+\max(b,1)$,
+\[
+s_k+\max(d(i,k),1)\ \le\ s_k+\max(d(l,k),1)+\max(d(i,l),1)\ \le\ s+\max(d(i,l),1).
+\]
+So for each $k$, agent $i$ acts at that round on a record of $k$ at least as recent as the one $l$ acts on at round $s$.
+Records are cumulative tables, hence
+\[
+V_{l,j}(s)\ \le\ n_{i,j}\big(s+\max(d(i,l),1)\big)\qquad\text{for every bin }j.
+\]
+\emph{Step 2: count the unseen pulls.} Of the $k-1$ earlier pulls into $J$, agent $i$ sees exactly $n$. Take another earlier pull, by an agent $l$ ($l=i$ is
+allowed: $i$ does not see its own unpublished pulls). Let $s_l=t-\max(d(i,l),1)$. At round $t$ agent $i$ uses $l$'s
+freshest record published in a step $\le s_l$, so an unseen pull of $l$ is of one of two kinds.
+
+\emph{(a) Made in a round $\le s_l$, but still unpublished after step $s_l$.} In step $s_l$ agent $l$ either
+published, leaving no unpublished pulls, or its trigger \eqref{eq:pubtrigger} failed. Either way, after step $s_l$ it
+has at most $\gamma\max(V_{l,J}(s_l),1)$ unpublished pulls in $J$. By Step~1 with $s=s_l$,
+$V_{l,J}(s_l)\le n_{i,J}(t)=n$. So this kind numbers at most $\gamma\max(n,1)$ for each $l$, and at most
+$N\gamma\max(n,1)$ in total. (If $s_l\le T_1$, there are no Phase-2 pulls of this kind.)
+
+\emph{(b) Made in a round in $(s_l,t]$.} A pull into $J$ needs an arm in bin $J$, and only Phase-2 rounds have bin
+pulls. So this kind numbers at most the number $u$ of agent-rounds $(l,r)$ with $\max(s_l,T_1)<r\le t$ at which bin $J$
+is available to $l$. These agent-rounds form a fixed set of size at most $\sum_l\max(d(i,l),1)\le F'$, all in Phase~2. As in Lemma~\ref{lem:avail}, the availability indicators are independent
+Bernoulli$(q_J)$ given the frozen direction, so the Chernoff bound and a union bound over the $N$ agents $i$, the $\Nb$
+bins and the $T$ rounds give $u\le2F'q_J+3\ell'=U'_J$ for all of them at once, with probability at least $1-\delta$.
+
+Adding up, $k-1\le n+N\gamma\max(n,1)+U'_J$. For the last claim, $n=0$ would give $k-1\le N\gamma+U'_J$, so $n\ge1$.
+Then $(1+N\gamma)\,n\ge k-1-U'_J>(k-1)/2$.
 \end{proof}
 
+This is the stale-count bound of the epoch protocol (Lemma~\ref{lem:stale}): a factor $1+N\gamma$ and an additive
+lag. It holds for every $\gamma$, because Step~1 measures the cap on $l$'s unpublished pulls against a count that $i$
+also sees, not against the true count $k-1$. (An earlier version used $V_{l,J}\le k-1$ and so needed $N\gamma\le1/2$.)
+
 \begin{theorem}[Regret of the published-only relay]\label{thm:pubrelay}
-Let Assumptions~\ref{ass} and~\ref{ass:delivery} hold, $N\gamma\le1/2$, and let $NT_0$ satisfy the sample-size condition
-of Lemma~\ref{lem:stein}. With probability at least $1-4\delta$,
+Let Assumption~\ref{ass} hold, let $\cG$ be static and connected with diameter $D$, so that $\Lambda=D$
+(Lemma~\ref{lem:flood}), let $\gamma>0$, and let $NT_0$ satisfy the sample-size condition of Lemma~\ref{lem:stein}.
+With probability at least $1-4\delta$,
 \begin{align*}
-R_T(N)\ \le\ {}&2L_fN(T_0+\Lambda)+8c'_\delta\sqrt{\Nb NT}+2L_{f'}\Delta NT+4L_{f'}\Xmax\eps_0(NT_0)NT\\
-&+2L_f\Big(8F'\min(K,\Nb)+\Nb(12\ell'+1)\Big).
+R_T(N)\ \le\ {}&2L_fN(T_0+\Lambda)+4\sqrt2\,c'_\delta\sqrt{(1+N\gamma)\Nb NT}+2L_{f'}\Delta NT+4L_{f'}\Xmax\eps_0(NT_0)NT\\
+&+2L_f\Big(4F'\min(K,\Nb)+\Nb(6\ell'+N\gamma+1)\Big).
 \end{align*}
-With the choices of Corollary~\ref{cor:rate} (and $\gamma=1/(2N)$),
+With the choices of Corollary~\ref{cor:rate}, including $\gamma=\gamma_0/N$,
 \[
 R_T(N)=\tilde O\Big((d\,NT)^{2/3}+K\,F'\Big),\qquad F'\le N\max(D,1).
+\]
+With the same choices but a constant $\gamma$ (such as $\gamma=1/2$) and $\gamma\Nb\le T$,
+\[
+R_T(N)=\tilde O\Big((d\,NT)^{2/3}+\sqrt{1+N\gamma}\,(NT)^{2/3}+K\,F'\Big).
 \]
 \end{theorem}
 \begin{proof}
 Work on $E_x\cap E_\theta\cap E'_\eta$ and the event of Lemma~\ref{lem:pubstale}. Lemma~\ref{lem:perpull} holds with
 the width $c'_\delta/\sqrt n$ of Lemma~\ref{lem:pubconf}; its proof only uses the confidence bound and the bin
-geometry. Fix a bin $J$. Charge $2L_f$ to each of its first $4U'_J+1$ pulls. Every later pull has $n\ge(k-1)/4$, so it
-costs at most $4c'_\delta/\sqrt{k-1}+2\omega$, and these sum to at most $8c'_\delta\sqrt{n_J}+2\omega n_J$. Sum over bins
-using $\sum_Jq_J\le\min(K,\Nb)$ and Cauchy--Schwarz, as in Theorem~\ref{thm:regret}.
+geometry. Fix a bin $J$.
+
+\emph{Early pulls.} Charge $2L_f$ to each of its first $\lfloor2U'_J+N\gamma\rfloor+1$ pulls.
+
+\emph{Late pulls}, with $k-1>2U'_J+N\gamma$. By Lemma~\ref{lem:pubstale}, $n\ge(k-1)/(2(1+N\gamma))$, so the pull costs
+at most $2c'_\delta\sqrt{2(1+N\gamma)/(k-1)}+2\omega$. Using $\sum_{k=2}^{n_J}(k-1)^{-1/2}\le2\sqrt{n_J}$, these sum to at
+most $4\sqrt2\,c'_\delta\sqrt{(1+N\gamma)\,n_J}+2\omega n_J$.
+
+\emph{Sum over bins.} The early pulls give $2L_f\sum_J(2U'_J+N\gamma+1)\le2L_f\big(4F'\min(K,\Nb)+\Nb(6\ell'+N\gamma+1)\big)$,
+using $\sum_Jq_J\le\min(K,\Nb)$. The late pulls give the UCB term after Cauchy--Schwarz, and the $2\omega$ terms give
+the discretisation and projection terms, as in Theorem~\ref{thm:regret}.
+
+\emph{Rates.} As in Corollary~\ref{cor:rate}, $\Nb=\tilde O((NT)^{1/3})$ and $c'_\delta=\tilde O(1)$. So the UCB term
+is $\tilde O(\sqrt{1+N\gamma}\,(NT)^{2/3})$, which is $\tilde O((NT)^{2/3})$ when $N\gamma=\gamma_0$. The term
+$2L_f\Nb N\gamma$ is of lower order whenever $\gamma\Nb\le T$, since then
+$(\Nb N\gamma)^2\le(1+N\gamma)\,\Nb\cdot\gamma\Nb N\le(1+N\gamma)\Nb NT$, so $\Nb N\gamma\le\sqrt{(1+N\gamma)\Nb NT}$.
+Finally, $2L_fN\Lambda=2L_fND\le4L_fF'$: for a pair $u,v$ at distance $D$, every $l$ has $d(u,l)+d(l,v)\ge D$, so
+$\sum_ld(u,l)+\sum_ld(v,l)\ge ND$ and $F'\ge ND/2$. So the Phase-1 sharing rounds are absorbed into $KF'$.
 \end{proof}
 
 \begin{remark}[What this buys]
 \begin{itemize}[nosep]
-\item \textbf{No $\sqrt N$, no $\sqrt{1+N\gamma}$, no epochs.} Each agent's view is a single prefix, so the UCB term is
-the server's (with constant 8).
-\item \textbf{The graph enters through the farness} $F'$, the sum of distances to the other agents, not through
-$N\cdot4\Lambda$. On a ring $F'\approx ND/2$; on a star $F'\approx2N$ although $D=2$. The term is horizon-free.
+\item \textbf{No $\sqrt N$ from the view, no epochs.} Each agent's view is a single prefix, so the confidence width
+is the server's. The only $N$-dependence in the UCB term is the trigger's $\sqrt{1+N\gamma}$, as with a server.
+\item \textbf{$\gamma$ is a regret--communication dial.} Theorem~\ref{thm:pubrelay} holds for every $\gamma$.
+$\gamma=\gamma_0/N$ gives the rate-optimal bound. A constant $\gamma$ costs $\sqrt{1+N\gamma}$ on the UCB term of the
+bound, and in return each agent publishes about $N$ times less often, because $\log_{1+\gamma}NT\approx N\log(NT)/\gamma_0$
+for $\gamma=\gamma_0/N$.
+\item \textbf{The graph term is horizon-free and smaller by a constant, not by an order.} It is $8L_fF'\min(K,\Nb)$,
+against $16(2L_f+4\sqrt2c_\delta)N\Lambda\min(K,\Nb)$ for the epoch protocol (Theorem~\ref{thm:hfree}). On every
+connected graph $ND/2\le F'\le N\max(D,1)$ (proof of Theorem~\ref{thm:pubrelay}), so with $\Lambda=D$ both are of
+order $NDK$: on a ring $F'\approx ND/2$, on a star $F'\approx2N=ND$. The gain is a constant (at least $4$) and, in
+practice, the absence of synchronisation: no slots, no alarms, no waiting for the farthest agent. E31 measures
+$3$--$6.5\times$ less extra regret than the epoch protocol.
 \item \textbf{Communication.} Between two of agent $l$'s triggers for bin $j$, its count $V_{l,j}$ grows by a factor $>1+\gamma$,
 so each agent publishes at most $\Nb(1+\log_{1+\gamma}NT)$ times. That gives the same bound as Theorem~\ref{thm:comm},
-with $\gamma=1/(2N)$. If each publication carries only the increment since the last one, an agent stores $O(\Nb+N)$
+for the same $\gamma$. If each publication carries only the increment since the last one, an agent stores $O(\Nb+N)$
 numbers, as in Proposition~\ref{prop:memory}(i).
-\item \textbf{Measured (E36).} At $\gamma=0.5$ it matches the flood relay of E23. At the proved $\gamma=1/(2N)$ it has
-\emph{less} extra regret on every graph (complete: $-25\pm6$ against $116\pm12$; ring: $381$ against $528$; path:
-$488$ against $633$), for $7$--$8\times$ more scalars. The excess divided by $KF$ is $0.19$--$0.30$ on the four
-non-complete graphs, and it is almost flat in $T$. So the protocol we can prove is at least as good as the protocol
-we ran.
+\item \textbf{Measured (E36).} At $\gamma=0.5$ it matches the flood relay of E23 in regret and in communication:
+extra regret over the server $538\pm29$ against $528\pm26$ on the ring and $643\pm22$ against $633\pm23$ on the path, with
+$1.02$--$1.06\times$ the scalars. It is flat in $T$ (ring, $T=2{,}500\to20{,}000$: $413\to545$, against $399\to531$).
+Across $K$ it tracks the flood relay up to $K=20$, and is worse at $K=40$ ($735\pm60$ against $627\pm45$). At
+$\gamma=1/(2N)$ it has \emph{less} extra regret on every graph (complete: $-25\pm6$; ring: $381$; path: $488$), for
+$7$--$8\times$ more scalars, so the dial is visible in practice too, but the regret side of it is far smaller than
+$\sqrt{1+N\gamma}=3$ suggests ($7{,}385$ against $7{,}229$ total regret on the ring, $+2\%$). Since the theorem now covers
+$\gamma=0.5$, the protocol we prove can be the protocol we run, at the flood relay's cost.
 \end{itemize}
+\end{remark}
+
+\begin{remark}[Coordinated first visits: measured, not yet proved]\label{rem:owners}
+The delay term $4F'\min(K,\Nb)$ charges the early pulls of each bin, and E37 confirms what they are in practice: far-apart
+agents pull the same bin while they still see it as empty (``blind'' pulls: $412$ with a server, $543$ on the ring,
+$581$ on the path). A 1-scalar ``I am exploring bin $j$'' claim cannot help the published-only relay. With $\gamma<1$, a
+pull into a bin seen as empty is published in the same step, and a claim would travel no faster. A rule that needs
+\emph{no} messages can help. Each bin has an owner fixed by a shared hash, and an agent leaves a bin it sees as empty
+to its owner until it has had that bin available $A$ times. With $A=10$, the extra regret over the server is $-41$ to
+$-12$ on all five graphs of E36 (it was $118$--$643$), blind pulls fall to the server's level, and the relay sends
+$1.6\times$ the scalars. The rule also helps a server (by $112$). Against a server with the same rule, the relay's extra regret is
+$71$--$100$, nearly flat in $F'$.
+What a proof needs: the rule uses counts and contexts only, so Lemmas~\ref{lem:causal} and~\ref{lem:pubconf} hold
+unchanged. Lemma~\ref{lem:perpull} fails for a \emph{held} pull (the best bin may be held), so held pulls need their own
+term, at most $A$ per agent and bin. Bounding that term by something smaller than $N\Nb A$ is open.
 \end{remark}
 
 %======================================================================
@@ -1266,7 +1361,7 @@ Result & Statement & Evidence \\ \midrule
 Thm~\ref{thm:lower} & $\Omega((NT)^{2/3})$ for any graph and protocol & E22 \\
 Thm~\ref{thm:conelower}, Cor~\ref{cor:ringlower} & ring/path: also $\Omega(N\min(T,D)^{1/3})$ & -- \\
 Thm~\ref{thm:regret}, \ref{thm:sharp}, \ref{thm:hfree} & epochs: $\tilde O((dNT)^{2/3}+N\Lambda K)$, w.h.p. & E31, E36 \\
-Thm~\ref{thm:pubrelay} & published-only relay: $\tilde O((dNT)^{2/3}+KF')$ & E23, E36 \\
+Thm~\ref{thm:pubrelay} & published-only relay, any $\gamma$: $\tilde O((dNT)^{2/3}+\sqrt{1+N\gamma}(NT)^{2/3}+KF')$ & E23, E36 \\
 Thm~\ref{thm:comm}, Prop~\ref{prop:memory} & $O(|E|N\Nb^2\log_{1+\gamma}NT)$ scalars, $O(\Nb+N)$ memory & E15, E20, E31 \\
 Cor~\ref{cor:robust} & directed, delayed, time-varying graphs: replace $D$ by $\Lambda$ & E18, E32 \\
 Thm~\ref{thm:agree}, Prop~\ref{prop:stop} & disagreement costs $\le4L_{f'}\Xmax\eta NT$; stopping with agreement & E28, E33 \\

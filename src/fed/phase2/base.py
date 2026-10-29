@@ -20,11 +20,16 @@ PER_BIN = 3
 
 class Phase2Strategy:
     name = "base"
+    patience = None                     # bin-owner rule (hold_fresh), off by default
+    OWNER_SEED = 20261025
 
     def setup(self, N, n_slots):
         self.N = N
         self.own_n = np.zeros((N, n_slots), dtype=np.int64)   # each agent's own pulls
         self.own_S = np.zeros((N, n_slots), dtype=float)
+        if self.patience is not None:
+            self.owner = np.random.default_rng(self.OWNER_SEED).integers(N, size=n_slots)
+            self.waited = np.zeros((N, n_slots), dtype=np.int64)
 
     def record(self, i, b, y):
         self.own_n[i, b] += 1
@@ -38,6 +43,18 @@ class Phase2Strategy:
         """`view(i)` restricted to bins `idx` -- the per-round hot path."""
         n, S = self.view(i)
         return n[idx], S[idx]
+
+    def hold_fresh(self, i, bins, fresh):
+        """Bool mask over `bins`: fresh bins agent i should leave alone this round, or None.
+
+        Bin-owner rule (E37), on when `patience` = A is set: each bin has an owner fixed by a
+        shared hash (no messages).  A bin agent i sees as empty is left to its owner until i
+        has had it available A times."""
+        if self.patience is None:
+            return None
+        held = fresh & (self.owner[bins] != i) & (self.waited[i, bins] < self.patience)
+        self.waited[i, bins[held]] += 1
+        return held
 
     def end_round(self, t):
         """Communicate if it is time.  -> (scalars sent, event label or None)."""

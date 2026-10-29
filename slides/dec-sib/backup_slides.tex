@@ -64,7 +64,7 @@ Each agent stores the freshest copy of every agent's own $(n_j,S_j)$ table, rela
 \end{frame}
 
 %====================================================================
-\begin{frame}{The version we analyse: synchronised epochs}
+\begin{frame}{Our first proof: synchronised epochs}
 \small
 \begin{block}{Phase 2, as analysed ($\Lambda$ = delivery time, $=D$ on a static graph)}
 \begin{itemize}
@@ -86,6 +86,72 @@ Each agent stores the freshest copy of every agent's own $(n_j,S_j)$ table, rela
 \begin{alertblock}{Why this version}
 What an agent sees is \emph{one common prefix plus one own block}, so the confidence width is exactly the server's. In the code version each agent sees $N$ separate per-agent prefixes, and the proof loses a factor $\sqrt N$.
 \end{alertblock}
+\end{frame}
+
+%====================================================================
+\begin{frame}{Theorem 17: regret with synchronised epochs}
+\scriptsize
+\emph{Synchronised epochs:} a Phase 2 variant in which all agents act on the \emph{same} delayed pooled table plus their own pulls (see backup). It was the first version we could analyse; Theorem 27 (main deck) now covers the relay we run.\vspace{-0.3em}
+\begin{block}{Theorem (with probability $\ge1-3\delta$)}
+\vspace{-0.8em}
+\begin{align*}
+R_T(N)\le{}&\underbrace{2L_fN(T_0{+}\Lambda)}_{\text{Phase 1}}
++\underbrace{4\sqrt2\,c_\delta\sqrt{(1{+}N\gamma)N_bNT}}_{\text{UCB}}
++\underbrace{2L_{f'}\Delta NT}_{\text{bin width}}\\[-0.3em]
+&+\underbrace{4L_{f'}X_{\max}\varepsilon_0 NT}_{\text{direction error}}
++\underbrace{2L_fN_b\big(2{+}N(\gamma{+}4\Lambda)\big)}_{\text{delay: the only graph term}}
+\end{align*}
+\end{block}
+\begin{block}{Corollary (rate): $\Delta=(NT)^{-1/3}$, $\gamma=\gamma_0/N$, $T_0$ balanced}
+\centering $R_T(N)=\tilde O\Big((d\,NT)^{2/3}\;+\;N\Lambda\,(NT)^{1/3}\Big)$\\[0.2em]
+\raggedright
+Matches Theorem 5 in $N$ and $T$ when $N\Lambda\le(NT)^{1/3}$: \textbf{the graph costs only an additive term.}
+\end{block}
+\vspace{-0.3em}\textbf{Proof in three steps}
+\scriptsize
+\begin{enumerate}\setlength{\itemsep}{0pt}
+\item \emph{Confidence:} view $=$ common prefix $+$ own block $\Rightarrow$ server width, no $\sqrt N$.
+\item \emph{Per pull:} regret $\le 2\times$width $+$ bin width (works for any sleeping pattern).
+\item \emph{Stale counts:} $\le\gamma G+4\Lambda$ unseen pulls per agent per bin.
+\end{enumerate}
+\end{frame}
+
+%====================================================================
+\begin{frame}{Theorem 22: the graph's cost does not grow with $T$}
+\scriptsize
+\begin{block}{Observation}
+Theorem 17 lets \emph{every} bin have $\approx4N\Lambda$ unseen pulls (a factor $N_b\sim(NT)^{1/3}$). But a pull into bin $j$ needs an arm in bin $j$, and there are only $K$ arms per agent-round, so in total about $N\Lambda K$ pulls are unseen.
+\end{block}
+\begin{block}{Theorem 22 (w.p.\ $\ge1-4\delta$; Lemma 21: Chernoff on how often each bin is available)}
+\vspace{-0.5em}
+\[
+\text{delay}\le\underbrace{(2L_f{+}4\sqrt2c_\delta)16N\Lambda\min(K,N_b)}_{\text{graph; no }T,\ N_b}+\underbrace{\tilde O(N_b)}_{\text{no graph}}
+\ \Rightarrow\ R_T(N)=\tilde O\big((dNT)^{2/3}+N\Lambda K\big)
+\]
+\end{block}
+\begin{columns}[c]
+\begin{column}{0.5\textwidth}
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+epochs & $NDK$ & measured & ratio\\
+\midrule
+complete & 320 & 353 & 1.10\\
+expander & 960 & 1,030 & 1.07\\
+torus & 1,280 & 1,319 & 1.03\\
+ring & 2,560 & 2,384 & 0.93\\
+path & 4,800 & 4,107 & 0.86\\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{itemize}
+\item Shape $NDK$ matches the measured excess within $\pm14\%$ on every graph (no fitted constant; the proved constant is larger).
+\item Almost flat in $T$, as predicted.
+\item Theorem 19 ($\Lambda\to\sqrt\Lambda$) is better when $K$ is large.
+\end{itemize}
+\end{column}
+\end{columns}
 \end{frame}
 
 %====================================================================
@@ -376,7 +442,7 @@ Robust to failing links & +27\% at 90\% link failures (E18)\\
 Server = one agent at $NT$ & within 0--10\%; proved lower + upper bound (E22)\\
 No server costs little & +1.5\% to +9\%, nearly flat in $T$ (E23)\\
 Graph cost has the proved shape & epochs: excess $/NDK=0.86$--$1.15$; relays: excess $\propto$ farness; flat in $T$ (E31, E36)\\
-Provable relay beats the relay we ran & lower excess on every graph, $7$--$8\times$ more scalars (E36)\\
+Provable relay = the relay we ran & at $\gamma=0.5$ same excess and scalars; at $\gamma=1/(2N)$ lower excess, $7$--$8\times$ more scalars (E36)\\
 Dependence on $K$ & grows like $K^{0.4}$--$K^{0.5}$; bounds are linear in $K$ (E36)\\
 Communication is Phase 2 & Phase 1 $<2\%$; logarithmic sync rounds (E22, E24)\\
 Agreement is what matters & disagreement $\times$1.25--1.34, fixed by one pass (E28); stopping with agreement (E33)\\

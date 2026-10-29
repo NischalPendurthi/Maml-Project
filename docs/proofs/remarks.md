@@ -347,8 +347,8 @@ the linear $K$ in the bound is loose (stated as open in the tex).
    which matches `relay()` in the code.
 3. **Martingale over the full order** (all bins), then optional skipping to bin $j$. The identity of the next pull
    must be a function of earlier noises, contexts and randomness only.
-4. **Stale counts** need $N\gamma\le1/2$ (the theorem uses $\gamma=1/(2N)$). The unpublished count of $l$ is $\le\gamma\max(V_{l,J},1)$
-   after every step, and $V_{l,J}\le k-1$.
+4. **Stale counts** needed $N\gamma\le1/2$ (the theorem used $\gamma=1/(2N)$), since the proof used $V_{l,J}\le k-1$.
+   *Superseded 2026-10-25 by R20:* the restriction is gone.
 5. The communication remark: $V_{l,j}$ grows by a factor $>1+\gamma$ between two triggers of $l$ for $j$. It needs
    $V$ to include $l$'s own record (it does: own records are usable from $s+1$).
 
@@ -362,3 +362,66 @@ E23 relay; at the proved $\gamma=1/(2N)$ it has lower excess on every graph (rin
 **Note.** The smoothness argument explains why our technique gives $n^{2/3}$ per cone. It does **not** prove that
 no linear-in-$D$ lower bound exists; the remark says so ("we do not know such instances"). Do not present it as an
 impossibility result.
+
+## R20. Published-only relay at any $\gamma$ (views nest) — `checked` (R21)
+
+**Where.** Lemma `lem:pubstale` (Lemma 26), Step 1 ("views nest") and Step 2(a); Theorem `thm:pubrelay` (Theorem 27),
+which now holds for every $\gamma>0$.
+
+**Context.** The old proof bounded $l$'s unpublished pulls by $\gamma\max(V_{l,J},1)$ and then used $V_{l,J}\le k-1$,
+so $k-1\le n+N\gamma(k-1)+u$, which is vacuous unless $N\gamma<1$. The new proof evaluates $l$'s trigger at the step
+$s_l=t-\max(d(i,l),1)$ and shows $V_{l,J}(s_l)\le n_{i,J}(t)$, so $k-1\le n+N\gamma\max(n,1)+U'_J$, which is the
+epoch protocol's stale-count shape (Lemma 16, `lem:stale`) for any $\gamma$.
+
+**What to check.**
+1. **Step 1 (views nest).** If $l$ can use a record of $k$ at round $s$ ($s_k+\max(d(l,k),1)\le s$), then $i$ can use it at
+   $s+\max(d(i,l),1)$. Triangle inequality plus $\max(a+b,1)\le\max(a,1)+\max(b,1)$. Then "freshest usable record of each
+   $k$" is at least as recent at $i$, and records are cumulative, so counts are monotone. Check that versioning in the
+   code (`kv`, freshest copy wins) really makes the count monotone in the version.
+2. **Step 2(a) with $l=i$.** $s_i=t-1$; $i$'s unpublished pulls after step $t-1$ are $\le\gamma\max(V_{i,J}(t-1),1)$ and
+   $V_{i,J}(t-1)\le n_{i,J}(t)$. So agent $i$ also contributes $\gamma\max(n,1)$, hence $N\gamma$ (not $(N-1)\gamma$).
+3. **Trigger timing.** The trigger at step $s$ compares against $V_{k,j}(s)$, the count $k$ acted on in round $s$. In the
+   code this is `Vn` before the relay update of that step (`end_round` computes `pub` before updating `Vn`). Matches.
+4. **Chernoff in Step 2(b).** The set of agent-rounds $\{(l,r): s_l<r\le t\}$ is fixed given $(i,t)$, of size $\le F'$;
+   the mean is $\le F'q_J$, and $\Prob(S\ge2F'q_J+3\ell')\le\Prob(S\ge2\mu+3\ell')$ for $\mu\le F'q_J$. Union over
+   $N\cdot N_b\cdot T$ triples.
+5. **Static graph only.** Step 1 uses hop distances. Under Assumption `ass:delivery` (time-varying graphs), nesting still
+   holds with the uniform delay $\Lambda$ for every pair (anything $l$ holds by round $s$ was published by step $s-1$,
+   so $i$ holds it by $s-1+\Lambda$), which gives the same theorem with $F'$ replaced by $N\Lambda$. Not written in the tex.
+6. **Constants.** The new bound is smaller than the old one even at $N\gamma=1/2$: UCB constant
+   $4\sqrt2\sqrt{1.5}\approx6.9<8$, delay $4F'$ vs $8F'$, $6\ell'$ vs $12\ell'$.
+
+**Why it matters.** The proved protocol can now run at $\gamma=0.5$, i.e. at the flood relay's communication (~180k
+scalars instead of ~1.37M in E36), with the flood relay's measured regret. The price in the bound is $\sqrt{1+N\gamma}$
+on the UCB term ($=3$ for $N=16$, $\gamma=0.5$); measured, the total regret is +2% against $\gamma=1/(2N)$ (E36, ring).
+The rate-optimal bound still needs $\gamma=\gamma_0/N$.
+
+## R21. Adversarial check of R18/R20 (published-only relay) — `checked`; fixes 1–7 and framing applied to the tex 2026-10-28
+
+Two independent agents (one trying to break the proof, one verifying it line by line) checked `lem:pubstale`,
+`lem:causal`, `lem:pubconf` and `thm:pubrelay`. Neither found a real gap. R20 items 1–4 hold. Simulations: exact
+relay and the repo's `FloodTables(own=False)`, 264 configurations (ring, path, star, complete, lollipop, random;
+$\gamma\in\{0.01,1/16,0.1,0.5,2\}$), checking nesting and $k-1\le n+N\gamma\max(n,1)+u$ on every pull: 0 violations,
+bound tight to within about 1 pull. Perturbing one reward: no agent reacts before $s_m+\max(d,1)$ (0/158 with
+`own=False`; the `own=True` control gives 95 violations, so the test is sensitive).
+
+**Minor fixes (wording/rigour, no change to the result).**
+1. `lem:pubconf` (l.849–863): add one line for predictability — every decision at $i$-time $\tau$ depends only on
+   rewards with key $\le\tau$ (ties broken by $s$), so no earlier-keyed pull can appear after the fact.
+2. `lem:causal` (l.825–833): spell out the induction on time for chained influence (reward → action → counts → record).
+3. l.97 says Phase 2 uses only conditional sub-Gaussianity; `lem:pubconf` orders by $\kappa_i$, so it needs the i.i.d.
+   noise of Assumption (i). Restrict that sentence to the epoch sections.
+4. l.105 ("faster relaying only shortens delivery") contradicts "view is exactly key $\le t$" (l.836). Define the key
+   as actual arrival time, or drop the parenthetical. State "static connected graph" in `thm:pubrelay` (see R20.5).
+5. Step 2(b): count Phase-2 rounds only in the window.
+6. Rates (l.943): say where $2L_fN\Lambda$ goes; constant-$\gamma$ rate needs $\gamma\Nb\le T$ (used, not stated).
+7. l.868: $F'$ is exactly max farness $+1$ on a connected graph, not "plus at most $N$".
+
+**Framing correction (l.957–958).** $ND/2\le F'\le N\max(D,1)$ always (take a diameter pair $u,v$:
+$d(u,l)+d(l,v)\ge D$). So $4F'K$ vs the epoch term $16N\Lambda K$ is a constant-factor gain, not a gain in order; the
+star example has $F'\approx2N=ND$. The real gains over epochs are: no synchronisation or alarms, no waiting for the
+farthest agent, fewer scalars, and a measured 3–6.5× smaller excess (E31).
+
+**Code/experiment scope** (agent report, not yet re-checked). (i) the UCB log constant in code is $\log(2\Nb NT/\delta)$, missing one factor $N$ of
+$c'_\delta$ (l.845) — harmless but unaligned; (ii) E18 runs the relay on directed, failing and dynamic graphs, which
+`thm:pubrelay` does not cover.
